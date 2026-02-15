@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global ─────────────────────────────────── */
+* {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background: #0a0118;
+  overflow-x: hidden;
+}
+
+/* ── Diagonal Light Beam ─────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg,
+      rgba(120, 50, 220, 0.04) 0%,
+      transparent 35%,
+      transparent 65%,
+      rgba(80, 40, 180, 0.03) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 3D Wave Visualization ───────────────────── */
+.wave-wrap {
+  position: relative;
+  filter: drop-shadow(0 0 60px rgba(139, 92, 246, 0.2)) drop-shadow(0 0 120px rgba(99, 80, 220, 0.1));
+  animation: wave-float 6s ease-in-out infinite;
+}
+
+@keyframes wave-float {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-12px) rotate(0.5deg);
+  }
+}
+
+/* Decorative Orbs */
+.deco-orb {
+  position: absolute;
+  border-radius: 50%;
+  animation: orb-drift 8s ease-in-out infinite;
+}
+
+.deco-orb-1 {
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 30% 30%, #c4b5fd, #7c3aed 60%, #4c1d95);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  top: 8%;
+  right: 35%;
+  animation-delay: 0s;
+}
+
+.deco-orb-2 {
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #f0abfc, #a855f7 60%, #6b21a8);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+  bottom: 15%;
+  right: 10%;
+  animation-delay: 2s;
+}
+
+.deco-orb-3 {
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 30% 30%, #93c5fd, #6366f1 60%, #3730a3);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  top: 65%;
+  left: 5%;
+  animation-delay: 4s;
+}
+
+.deco-orb-4 {
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle at 30% 30%, #fda4af, #ec4899 60%, #9d174d);
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.3);
+  top: 20%;
+  right: 5%;
+  animation-delay: 1s;
+}
+
+@keyframes orb-drift {
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  33% {
+    transform: translate(8px, -12px);
+  }
+
+  66% {
+    transform: translate(-6px, 8px);
+  }
+}
+
+/* Feature Cards (floating, connected to wave) */
+.feature-card-float {
+  background: rgba(12, 6, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+}
+
+.feature-card-float:hover {
+  border-color: rgba(139, 92, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ── Glass Cards ─────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+/* Stat Cards */
+.stat-card {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(59, 130, 246, 0.03));
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+  transform: translateY(-2px);
+}
+
+/* ── Brand / Feature Strip ───────────────────── */
+.brand-strip {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Animations ──────────────────────────────── */
+.animate-fade-in-up {
+  animation: fadeInUp 0.7s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger>*:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.stagger>*:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.stagger>*:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.4);
+}
+
+/* ── Utilities ───────────────────────────────── */
+.gradient-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+}
+
+.glow-purple {
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.3), 0 4px 25px rgba(0, 0, 0, 0.3);
+}
+
+.glow-pink {
+  box-shadow: 0 0 25px rgba(236, 72, 153, 0.3);
+}
