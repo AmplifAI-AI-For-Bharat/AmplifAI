@@ -6,3 +6,4 @@ python-dotenv
 requests
 textstat
 yt-dlp
+python-multipart

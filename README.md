@@ -4,7 +4,7 @@ AmplifAI is an AI-powered social media intelligence platform that leverages **hy
 
 Unlike traditional platforms that optimize for purely viral engagement, AmplifAI focuses on **Semantic Density**—ranking content by its information value, rarity, and unique perspective.
 
-![AmplifAI Dashboard](https://via.placeholder.com/800x450?text=AmplifAI+Dashboard+Concept)
+![AmplifAI Dashboard](assets/landing_page.png)
 
 ---
 

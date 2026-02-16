@@ -9,34 +9,6 @@ import asyncio
 class CreatorService:
     # ... (init and analyze_niche)
 
-    async def generate_assessment(self, profile: CreatorProfile) -> Dict[str, Any]:
-        """
-        Generates a strategic assessment for a creator based on their profile.
-        Returns a list of high-potential niches tailored to their skills and risk tolerance.
-        """
-        print(f"🧠 Generating Assessment for Profile: {profile.primary_skills} | Risk: {profile.risk_tolerance}")
-        
-        # 1. Get Strategic Suggestions
-        suggestions = self.bedrock_agent.suggest_strategic_niches(profile)
-        
-        results = []
-        for niche in suggestions:
-            try:
-                # 2. Analyze each suggestion (Lightweight check)
-                # We use recursion_depth=1 to skip sub-niche drilling for speed
-                analysis = await self.analyze_niche(niche, recursion_depth=1)
-                if "error" not in analysis:
-                    results.append(analysis)
-            except Exception as e:
-                print(f"assessment analysis failed for {niche}: {e}")
-                
-        # 3. Sort by Opportunity Score
-        results.sort(key=lambda x: x.get('market_gap_score', 0), reverse=True)
-        
-        return {
-            "profile_summary": f"{profile.risk_tolerance} Creator with skills in {', '.join(profile.primary_skills)}",
-            "recommended_niches": results
-        }
     def __init__(self):
         self.scraper = ScraperService()
         self.ranking_engine = RankingEngine()
