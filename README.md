@@ -25,6 +25,19 @@ Unlike traditional platforms that optimize for purely viral engagement, AmplifAI
 
 ---
 
+## 🧠 AWS Bedrock Integration
+
+AmplifAI uses **AWS Bedrock** (Claude 3 Sonnet) to power its core intelligence engine. The integration (`app/services/bedrock_agent.py`) handles:
+
+1.  **Intent Analysis**: Determines the "Hyperbolic Vector" (Sub-culture, Vibe, Target Audience) of search queries.
+2.  **Semantic Density Scoring**: Analyzes video transcripts to score "Information Density" (0-100) and filter out "fluff".
+3.  **Blue Ocean Detection**: Brainstorms underserved sub-niches based on market saturation data.
+4.  **Content Generation**: Generates video scripts, summaries, and repurposes content for other platforms.
+
+> **Note**: If AWS credentials are not provided in `.env`, the system automatically falls back to **Demo Mode**, using mock data for all AI features.
+
+---
+
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 19, Vite, Tailwind CSS, Three.js (@react-three/fiber)
@@ -91,21 +104,21 @@ S3_BUCKET_NAME=hyperbolic-pantry
 
 ## ▶️ Running the Application
 
-### Start the Backend
+### Start the Backend (Port 8000)
 From the root directory (make sure your venv is activated):
 
 ```bash
 uvicorn app.main:app --reload
 ```
-The API will be available at `http://localhost:8000`. API Docs at `http://localhost:8000/docs`.
+The API will be available at **http://localhost:8000**. API Docs at `http://localhost:8000/docs`.
 
-### Start the Frontend
+### Start the Frontend (Port 5173)
 In a separate terminal, navigate to `frontend/` and run:
 
 ```bash
 npm run dev
 ```
-The application will open at `http://localhost:5173`.
+The application will open at **http://localhost:5173**.
 
 ---
 
