@@ -42,7 +42,7 @@ AmplifAI uses **AWS Bedrock** (Claude 3 Sonnet) to power its core intelligence e
 
 - **Frontend**: React 19, Vite, Tailwind CSS, Three.js (@react-three/fiber)
 - **Backend**: FastAPI (Python 3.8+), Uvicorn
-- **AI & ML**: AWS Bedrock (Claude 3 Sonnet), `yt-dlp` (Data Extraction), `textstat` (NLP)
+- **AI & ML**: AWS Bedrock (Claude 3 Sonnet), YouTube Data API v3, `textstat` (NLP)
 - **Storage**: AWS S3 (Data "Pantry" & Caching)
 
 ---
