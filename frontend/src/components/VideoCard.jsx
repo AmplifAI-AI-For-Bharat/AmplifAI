@@ -28,25 +28,19 @@ const VideoCard = ({ video }) => {
     };
 
     const handleTranslate = async () => {
-        // If already translated, just toggle the popup
         if (translation) {
             setShowPopup(true);
             return;
         }
-
         setTranslating(true);
         try {
             const response = await fetch('http://localhost:8000/translate/video', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    video_id: video.video_id,
-                    title: video.title || ""
-                })
+                body: JSON.stringify({ video_id: video.video_id, title: video.title || "" })
             });
             const data = await response.json();
             if (data.error || data.detail) throw new Error(data.error || data.detail);
-
             setTranslation(data.translated_text);
             setShowPopup(true);
         } catch (e) {
@@ -57,73 +51,69 @@ const VideoCard = ({ video }) => {
         }
     };
 
+    // Popup rendered via portal
+    const translationPopup = showPopup && translation ? ReactDOM.createPortal(
+        <div
+            onClick={() => setShowPopup(false)}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1rem' }}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ background: '#fff', borderRadius: '1rem', maxWidth: '28rem', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+            >
+                {/* Header */}
+                <div style={{ background: 'linear-gradient(to right, #3B82F6, #2563EB)', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>🌐</span>
+                        <h4 style={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', margin: 0 }}>English Translation</h4>
+                    </div>
+                    <button
+                        onClick={() => setShowPopup(false)}
+                        style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1.5rem', fontWeight: 700, width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    >×</button>
+                </div>
+                {/* Thumbnail */}
+                <div style={{ width: '100%', aspectRatio: '16/9', background: '#f3f4f6' }}>
+                    <img src={`https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg`} alt={video.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                {/* Content */}
+                <div style={{ padding: '1.25rem' }}>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Original</span>
+                        <p style={{ color: '#4B5563', fontSize: '0.875rem', marginTop: '0.25rem', lineHeight: 1.6 }}>{video.title}</p>
+                    </div>
+                    <div style={{ background: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: '0.75rem', padding: '1rem' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.1em' }}>English Translation</span>
+                        <p style={{ color: '#111827', fontSize: '1rem', fontWeight: 600, marginTop: '0.25rem', lineHeight: 1.6 }}>{translation}</p>
+                    </div>
+                    <p style={{ color: '#9CA3AF', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.75rem' }}>
+                        {video.channel} • {video.views}
+                    </p>
+                </div>
+                {/* Footer */}
+                <div style={{ padding: '0 1.25rem 1.25rem' }}>
+                    <button
+                        onClick={() => setShowPopup(false)}
+                        style={{ width: '100%', padding: '0.625rem', background: '#3B82F6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: '0.5rem', border: 'none', cursor: 'pointer' }}
+                    >Close</button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    ) : null;
+
     return (
         <>
-            {/* Translation Popup — Portal to body to avoid CSS transform blinking */}
-            {showPopup && translation && ReactDOM.createPortal(
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1rem' }}
-                    onClick={() => setShowPopup(false)}>
-                    <div style={{ background: '#fff', borderRadius: '1rem', maxWidth: '28rem', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
-                        onClick={(e) => e.stopPropagation()}>
-                        {/* Header */}
-                        <div style={{ background: 'linear-gradient(to right, #3B82F6, #2563EB)', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontSize: '1.25rem' }}>🌐</span>
-                                <h4 style={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', margin: 0 }}>English Translation</h4>
-                            </div>
-                            <button onClick={() => setShowPopup(false)}
-                                style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1.5rem', fontWeight: 700, width: '2rem', height: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                                ×
-                            </button>
-                        </div>
-
-                        {/* Thumbnail */}
-                        <div style={{ width: '100%', aspectRatio: '16/9', background: '#f3f4f6' }}>
-                            <img src={`https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg`}
-                                alt={video.title}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-
-                        {/* Content */}
-                        <div style={{ padding: '1.25rem' }}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Original</span>
-                                <p style={{ color: '#4B5563', fontSize: '0.875rem', marginTop: '0.25rem', lineHeight: 1.6 }}>{video.title}</p>
-                            </div>
-                            <div style={{ background: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: '0.75rem', padding: '1rem' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.1em' }}>English Translation</span>
-                                <p style={{ color: '#111827', fontSize: '1rem', fontWeight: 600, marginTop: '0.25rem', lineHeight: 1.6 }}>{translation}</p>
-                            </div>
-                            <p style={{ color: '#9CA3AF', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.75rem' }}>
-                                {video.channel} • {video.views}
-                            </p>
-                        </div>
-
-                        {/* Footer */}
-                        <div style={{ padding: '0 1.25rem 1.25rem' }}>
-                            <button onClick={() => setShowPopup(false)}
-                                style={{ width: '100%', padding: '0.625rem', background: '#3B82F6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', borderRadius: '0.5rem', border: 'none', cursor: 'pointer' }}>
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-
+            {translationPopup}
             <div className={`
-      df-card group overflow-hidden
-      ${isBoosted ? 'border-t-[6px] border-t-devfolio-blue' : 'border-t-[6px] border-t-gray-100'}
-      ${isSuppressed ? 'opacity-50 grayscale' : ''}
-    `}>
-
+                df-card group overflow-hidden
+                ${isBoosted ? 'border-t-[6px] border-t-devfolio-blue' : 'border-t-[6px] border-t-gray-100'}
+                ${isSuppressed ? 'opacity-50 grayscale' : ''}
+            `}>
                 {/* Thumbnail / Video Player */}
                 <div className="w-full aspect-video bg-gray-50 relative overflow-hidden">
                     {!isPlaying ? (
-                        <button
-                            onClick={() => setIsPlaying(true)}
-                            className="w-full h-full relative"
-                        >
+                        <button onClick={() => setIsPlaying(true)} className="w-full h-full relative">
                             <img
                                 src={`https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg`}
                                 alt={video.title}
@@ -148,14 +138,11 @@ const VideoCard = ({ video }) => {
                         </button>
                     ) : (
                         <iframe
-                            width="100%"
-                            height="100%"
+                            width="100%" height="100%"
                             src={`https://www.youtube.com/embed/${video.video_id}?autoplay=1`}
-                            title={video.title}
-                            frameBorder="0"
+                            title={video.title} frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            className="absolute inset-0"
+                            allowFullScreen className="absolute inset-0"
                         ></iframe>
                     )}
                 </div>
@@ -170,55 +157,32 @@ const VideoCard = ({ video }) => {
                                 {video.channel} • {video.views}
                             </p>
                         </div>
-
-                        {/* Score Badge */}
-                        <div className={`
-                        flex items-center justify-center w-10 h-10 rounded-full border-2 font-black text-xs
-                        ${isBoosted ? 'border-devfolio-blue text-devfolio-blue' : 'border-gray-100 text-gray-300'}
-                    `}>
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-black text-xs ${isBoosted ? 'border-devfolio-blue text-devfolio-blue' : 'border-gray-100 text-gray-300'}`}>
                             {video.hyperbolic_score.toFixed(0)}
                         </div>
                     </div>
 
-                    {/* Match Reason */}
                     {video.match_reason && (
-                        <div className={`mt-5 text-[11px] font-bold p-3 rounded-lg leading-relaxed
-                        ${isBoosted ? 'bg-devfolio-blue/5 text-devfolio-blue border border-devfolio-blue/10' : 'bg-red-50 text-red-600 border border-red-100'}
-                    `}>
+                        <div className={`mt-5 text-[11px] font-bold p-3 rounded-lg leading-relaxed ${isBoosted ? 'bg-devfolio-blue/5 text-devfolio-blue border border-devfolio-blue/10' : 'bg-red-50 text-red-600 border border-red-100'}`}>
                             <span className="mr-2">{isBoosted ? '🌊' : '🔻'}</span>
                             {video.match_reason}
                         </div>
                     )}
 
-                    {/* Relevance Feedback */}
+                    {/* Buttons */}
                     <div className="flex gap-3 mt-6 pt-5 border-t border-gray-50">
                         <button
                             onClick={() => handleFeedback('relevant')}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'relevant'
-                                ? 'bg-devfolio-blue/10 border-devfolio-blue/30 text-devfolio-blue'
-                                : 'border-gray-100 bg-white hover:border-devfolio-blue/30 text-gray-400 hover:text-devfolio-blue'
-                                }`}
-                        >
-                            Relevant
-                        </button>
+                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'relevant' ? 'bg-devfolio-blue/10 border-devfolio-blue/30 text-devfolio-blue' : 'border-gray-100 bg-white hover:border-devfolio-blue/30 text-gray-400 hover:text-devfolio-blue'}`}
+                        >Relevant</button>
                         <button
                             onClick={() => handleFeedback('not_relevant')}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'not_relevant'
-                                ? 'bg-red-50 border-red-200 text-red-600'
-                                : 'border-gray-100 bg-white hover:border-red-200 text-gray-400 hover:text-red-600'
-                                }`}
-                        >
-                            Hide
-                        </button>
+                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'not_relevant' ? 'bg-red-50 border-red-200 text-red-600' : 'border-gray-100 bg-white hover:border-red-200 text-gray-400 hover:text-red-600'}`}
+                        >Hide</button>
                         <button
                             onClick={handleTranslate}
                             disabled={translating}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${translating
-                                ? 'bg-devfolio-yellow/10 border-devfolio-yellow/30 text-devfolio-yellow cursor-wait'
-                                : translation
-                                    ? 'bg-devfolio-green/10 border-devfolio-green/30 text-devfolio-green'
-                                    : 'border-gray-100 bg-white hover:border-devfolio-yellow/30 hover:text-devfolio-yellow'
-                                }`}
+                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${translating ? 'bg-devfolio-yellow/10 border-devfolio-yellow/30 text-devfolio-yellow cursor-wait' : translation ? 'bg-devfolio-green/10 border-devfolio-green/30 text-devfolio-green' : 'border-gray-100 bg-white hover:border-devfolio-yellow/30 hover:text-devfolio-yellow'}`}
                         >
                             {translating ? (
                                 <>
