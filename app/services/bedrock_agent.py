@@ -1,7 +1,9 @@
 import json
 import boto3
+import asyncio
+from typing import List, Dict, Optional
 from app.core.config import settings
-from app.core.models import UserContext, HyperbolicIntent, CreatorProfile
+from app.core.models import UserContext, HyperbolicIntent, CreatorProfile, SubCulture
 
 class BedrockAgent:
     def __init__(self):
@@ -16,36 +18,70 @@ class BedrockAgent:
                 print(f"⚠️ Failed to initialize AWS Client: {e}")
                 settings.DEMO_MODE = True
         
-    def analyze_vibe(self, query: str, context: UserContext) -> HyperbolicIntent:
+    async def analyze_vibe(self, query: str, context: UserContext) -> HyperbolicIntent:
         """
         Analyzes the query to find the 'Hyperbolic Vector' (Sub-culture/Intent).
         """
         if settings.DEMO_MODE:
-            return self._mock_analysis(query, context)
+            # check if deep interests can inform this
+            deep_context = ""
+            if context.deep_interests:
+                deep_context = f" User deeply interested in: {[d.name for d in context.deep_interests]}"
+            return self._mock_analysis(query + deep_context, context)
             
         # Real Bedrock Call for Intent Analysis
         prompt = f"""
         Analyze this search query: "{query}" and user context interests: {context.interests}.
-        Determine the 'Hyperbolic Vector' for a search engine that prioritizes niche, high-signal content over generic viral videos.
+        Determine the 'Hyperbolic Vector' for a search engine that prioritizes rich, high-signal content from across India (Hindi, Tamil, Telugu, etc.).
+        Focus on delivering a diverse feed that captures regional nuances and broad relevance.
         
         Return JSON format:
         {{
-            "sub_culture": "Specific Niche Name (e.g. 'Coffee Purists')",
-            "vibe": "Short descriptive vibe (e.g. 'Scientific & Artisan')",
-            "target_audience": "Who is this for?",
-            "boost_keywords": ["list", "of", "high", "signal", "terms"],
-            "suppress_keywords": ["terms", "to", "avoid", "noise"]
+            "sub_culture": "Specific Region or Niche",
+            "vibe": "Cultural and topical vibe",
+            "target_audience": "Who in India is this for?",
+            "boost_keywords": ["list including regional terms in English/Hindi/Tamil/Telugu script if relevant"],
+            "suppress_keywords": ["list"],
+            "is_ambiguous": false,
+            "potential_intents": []
         }}
         """
         
         try:
-            response = self._invoke_bedrock(prompt)
+            response = await self._invoke_bedrock(prompt)
+            # Ensure it's never ambiguous regardless of the model output
+            if "is_ambiguous" in response:
+                 response["is_ambiguous"] = False
+            
+            # Fix: Model sometimes returns strings instead of dicts for potential_intents
+            if "potential_intents" in response and isinstance(response["potential_intents"], list):
+                sanitized_intents = []
+                for item in response["potential_intents"]:
+                    if isinstance(item, dict):
+                        # Ensure required fields are present to satisfy Pydantic
+                        item.setdefault("sub_culture", response.get("sub_culture", "Related"))
+                        item.setdefault("vibe", response.get("vibe", "Similar"))
+                        item.setdefault("target_audience", response.get("target_audience", "General"))
+                        item.setdefault("boost_keywords", [])
+                        item.setdefault("suppress_keywords", [])
+                        sanitized_intents.append(item)
+                    elif isinstance(item, str):
+                        sanitized_intents.append({
+                            "sub_culture": item,
+                            "vibe": "Exploratory",
+                            "target_audience": "Curious Users",
+                            "boost_keywords": [],
+                            "suppress_keywords": [],
+                            "is_ambiguous": False
+                        })
+                response["potential_intents"] = sanitized_intents
+
             return HyperbolicIntent(**response)
         except Exception as e:
             print(f"Bedrock Intent Analysis Failed: {e}")
             return self._mock_analysis(query, context)
 
-    def analyze_semantic_density(self, transcript: str) -> dict:
+    async def analyze_semantic_density(self, transcript: str) -> dict:
         """
         [THE BRAIN]: Analyzes transcript for 'Information Density'.
         Distinguishes 'Signal' (Insight) from 'Noise' (Fluff).
@@ -78,7 +114,7 @@ class BedrockAgent:
         """
 
         try:
-            return self._invoke_bedrock(prompt)
+            return await self._invoke_bedrock(prompt)
         except Exception as e:
             print(f"Bedrock Transcript Analysis Failed: {e}")
             return {
@@ -88,9 +124,9 @@ class BedrockAgent:
                 "noise_flags": ["AI Error"]
             }
 
-    def _invoke_bedrock(self, prompt: str) -> dict:
+    async def _invoke_bedrock(self, prompt: str) -> dict:
         """
-        Helper to invoke Claude 3 Sonnet via Bedrock.
+        Helper to invoke Claude 3 Haiku via Bedrock asynchronously.
         """
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
@@ -103,8 +139,10 @@ class BedrockAgent:
             ]
         })
 
-        response = self.client.invoke_model(
-            modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+        # Run blocking boto3 client call in a separate thread to keep event loop free
+        response = await asyncio.to_thread(
+            self.client.invoke_model,
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
             body=body
         )
 
@@ -117,15 +155,112 @@ class BedrockAgent:
         elif "{" in content:
             content = content[content.find("{"):content.rfind("}")+1]
             
-        return json.loads(content)
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback if AI returns raw text instead of JSON
+            return {"script": content}
+
+    async def generate_embeddings(self, text: str) -> List[float]:
+        """
+        Generates Amazon Titan Text Embeddings V2 for semantic vector search asynchronously.
+        """
+        if settings.DEMO_MODE:
+            return [0.0] * 1024  # Standardized to 1024
+            
+        body = json.dumps({
+            "inputText": text,
+            "dimensions": 1024,
+            "normalize": True
+        })
+        
+        try:
+            response = await asyncio.to_thread(
+                self.client.invoke_model,
+                modelId="amazon.titan-embed-text-v2:0",
+                accept="application/json",
+                contentType="application/json",
+                body=body
+            )
+            response_body = json.loads(response.get("body").read())
+            return response_body.get("embedding", [])
+        except Exception as e:
+            print(f"Titan Embeddings Failed: {e}")
+            return [0.0] * 1024
+
+    async def generate_multimodal_embeddings(self, text: str, image_base64: str) -> List[float]:
+        """
+        Generates Amazon Titan Multimodal embeddings asynchronously.
+        """
+        if settings.DEMO_MODE:
+            return [0.0] * 1024
+            
+        bodyPayload = {}
+        if text: 
+            text_str = str(text)
+            bodyPayload["inputText"] = text_str[:128]
+        if image_base64: bodyPayload["inputImage"] = image_base64
+        bodyPayload["embeddingConfig"] = {"outputEmbeddingLength": 1024}
+        
+        body = json.dumps(bodyPayload)
+        
+        try:
+            response = await asyncio.to_thread(
+                self.client.invoke_model,
+                modelId="amazon.titan-embed-image-v1",
+                accept="application/json",
+                contentType="application/json",
+                body=body
+            )
+            response_body = json.loads(response.get("body").read())
+            return response_body.get("embedding", [])
+        except Exception as e:
+            print(f"Titan Multimodal Embeddings Failed: {e}")
+            return [0.0] * 1024
 
     def _mock_analysis(self, query: str, context: UserContext) -> HyperbolicIntent:
         """
         Universal Fallback Intent Generator.
         Generates a valid Hyperbolic Intent for ANY query.
         """
-        query_lower = query.lower()
+        query_str = str(query)
+        query_lower = query_str.lower()
+        base_query_lower = query_str.split(" User deeply interested in:")[0].lower().strip()
         
+        # 0. AMBIGUITY SPECIAL CASE: "Space Analysis"
+        if base_query_lower == "space analysis":
+            return HyperbolicIntent(
+                sub_culture="Ambiguous Discovery",
+                vibe="Multi-Domain Signal",
+                target_audience="Varied",
+                boost_keywords=[],
+                suppress_keywords=[],
+                is_ambiguous=True,
+                potential_intents=[
+                    HyperbolicIntent(
+                        sub_culture="Market Space Analysis",
+                        vibe="Business & Strategic",
+                        target_audience="Creators / Founders",
+                        boost_keywords=["gap", "signal", "opportunity", "market"],
+                        suppress_keywords=["teeth", "dentist", "physics", "mit", "equations"]
+                    ),
+                    HyperbolicIntent(
+                        sub_culture="Orthodontic Space Analysis",
+                        vibe="Medical & Clinical",
+                        target_audience="Dentists / Students",
+                        boost_keywords=["teeth", "crowding", "dentistry", "bolton", "arch"],
+                        suppress_keywords=["market", "business", "saas", "creator"]
+                    ),
+                    HyperbolicIntent(
+                        sub_culture="Physics State Space",
+                        vibe="Academic & Theoretical",
+                        target_audience="Physicists / Students",
+                        boost_keywords=["equations", "differential", "control theory", "mit"],
+                        suppress_keywords=["teeth", "market", "business", "dentist"]
+                    )
+                ]
+            )
+
         # 1. Logic for "Quantum / Physics"
         if "quantum" in query_lower or "physics" in query_lower:
             if "eli5" in query_lower or "baby" in query_lower or "basic" in query_lower:
@@ -202,6 +337,70 @@ class BedrockAgent:
             boost_keywords=query_lower.split(), # Boost words in the query
             suppress_keywords=["reaction", "prank", "giveaway", "shoutout"] # Always suppress trash
         )
+
+    async def map_interests(self, broad_interests: List[str]) -> List[SubCulture]:
+        """
+        Expands broad interests into a 'Hyperbolic Interest Graph' of Sub-Cultures.
+        """
+        if settings.DEMO_MODE:
+            return self._mock_interest_mapping(broad_interests)
+
+        prompt = f"""
+        Expand these broad interests into specific, high-signal 'Hyperbolic Sub-Cultures'.
+        Interests: {broad_interests}
+
+        For EACH broad interest, find 2-3 deep, niche sub-cultures that prioritize 
+        technical depth, unique perspectives, and high information density.
+
+        Return JSON format:
+        {{
+            "deep_interests": [
+                {{
+                    "name": "Sub-Culture Name (e.g. 'Lunar Logistics')",
+                    "vibe": "Short descriptive vibe (e.g. 'Engineering-Heavy & Industrial')",
+                    "boost_keywords": ["term1", "term2", "term3"]
+                }}
+            ]
+        }}
+        """
+        try:
+            response = await self._invoke_bedrock(prompt)
+            return [SubCulture(**item) for item in response.get("deep_interests", [])]
+        except Exception as e:
+            print(f"Interest Mapping Failed: {e}")
+            return self._mock_interest_mapping(broad_interests)
+
+    def _mock_interest_mapping(self, broad_interests: List[str]) -> List[SubCulture]:
+        """
+        Mock expansion for Demo Mode.
+        """
+        mapping = {
+            "tech": [
+                SubCulture(name="Low-Level Engineering", vibe="Hardware & Assembly", boost_keywords=["risc-v", "kernel", "latency"]),
+                SubCulture(name="AI Safety & Ethics", vibe="Philosophical & Critical", boost_keywords=["alignment", "evals", "interpretability"]),
+                SubCulture(name="Cybernetics", vibe="Body-Tech Integration", boost_keywords=["neuralink", "hci", "prosthetics"])
+            ],
+            "finance": [
+                SubCulture(name="DeFi Architecture", vibe="Technical & decentralized", boost_keywords=["liquidity", "yield", "smart contract"]),
+                SubCulture(name="Austrian Economics", vibe="Historical & Theoretical", boost_keywords=["hayek", "inflation", "sound money"])
+            ],
+            "science": [
+                SubCulture(name="Astrobiology", vibe="Speculative & Scientific", boost_keywords=["exoplanet", "biosignature", "seti"]),
+                SubCulture(name="Synthetic Biology", vibe="Engineering Life", boost_keywords=["crispr", "genetic", "bio-foundry"])
+            ]
+        }
+        
+        results = []
+        for bi in broad_interests:
+            key = bi.lower().strip()
+            if key in mapping:
+                results.extend(mapping[key])
+            else:
+                # Dynamic generic expansion
+                results.append(SubCulture(name=f"{bi.title()} Analysis", vibe="Deep & Structural", boost_keywords=[bi.lower(), "structural", "analysis"]))
+        
+        final_results: List[SubCulture] = results
+        return final_results[:8]
 
     def suggest_sub_niches(self, topic: str) -> list[str]:
         """
@@ -284,9 +483,10 @@ class BedrockAgent:
                 
         return suggestions[:5] # Return top 5
 
-    def generate_content_script(self, topic: str, angle: str) -> str:
+    async def generate_content_script(self, topic: str, angle: str) -> str:
         """
-        Generates a video script + hook based on a topic and angle.
+        Generates a video script + hook based on a topic and angle using a single-shot JSON prompt.
+        Optimized for sub-5s response.
         """
         if settings.DEMO_MODE:
             return f"**[MOCK SCRIPT]**\n\n**Topic:** {topic}\n**Angle:** {angle}\n\n**Hook (0-5s):** 'Stop doing {topic} the wrong way!'\n\n**Body:** ... (Mock Content) ...\n\n---\n*🔒 This is a demo response. Add your AWS Bedrock keys to `.env` for real AI-generated scripts.*"
@@ -296,46 +496,26 @@ class BedrockAgent:
         Topic: "{topic}"
         Angle/Vibe: "{angle}"
 
-        1. **Hook (0-10s)**: High-retention opening.
-        2. **Value Prop**: Why should they watch?
-        3. **Key Points**: 3 bullet points of unique insight (Hyperbolic/High-Signal).
-        4. **Call to Action**: Smooth interaction prompt.
+        Rules:
+        - Hook (0-10s): High-retention opening.
+        - Value Prop: Why should they watch?
+        - Key Points: 3 bullet points of unique insight. No tables.
+        - Call to Action: Smooth interaction prompt.
+        - Formatting: Use only plain text and markdown headers/lists. DO NOT use markdown tables.
         
-        Keep it punchy, conversational, and high-energy.
-        """
-        try:
-            response = self._invoke_bedrock(prompt)
-            # Bedrock might return dict or str depending on _invoke_bedrock parsing, 
-            # but _invoke_bedrock tries to return JSON. Use raw text if possible or handle dict.
-            # actually _invoke_bedrock returns json.loads(content). if content is text, it might fail or return string?
-            # Let's assume _invoke_bedrock returns the raw text content if it's not JSON? 
-            # Wait, _invoke_bedrock tries to parse JSON. 
-            # Let's adjust _invoke_bedrock or just handle the response.
-            # For this specific prompt, let's ask for Markdown text, but _invoke_bedrock expects JSON.
-            # I will wrap the response in a JSON object in the prompt.
-            return str(response) 
-        except Exception:
-            # Fallback to pure text prompt if needed
-             pass
-
-        # RE-DOING PROMPT FOR JSON COMPATIBILITY
-        prompt_json = f"""
-        Act as a master YouTube Strategist. Write a video script outline for:
-        Topic: "{topic}"
-        Angle/Vibe: "{angle}"
-        
-        Return JSON:
+        Return JSON ONLY:
         {{
-            "script": "The full markdown script here..."
+            "script": "# Script title\\n\\n## Hook\\n...\\n\\n## Body\\n..."
         }}
         """
         try:
-            res = self._invoke_bedrock(prompt_json)
-            return res.get("script", "Error generating script.")
+            res = await self._invoke_bedrock(prompt)
+            return res.get("script", "Error: Script key missing in AI response.")
         except Exception as e:
+            print(f"❌ Script Gen Failure: {e}")
             return f"Error generating script: {e}"
 
-    def summarize_video(self, transcript: str) -> dict:
+    async def summarize_video(self, transcript: str) -> dict:
         """
         Summarizes a transcript into Key Takeaways and a Shorts Script.
         """
@@ -348,17 +528,19 @@ class BedrockAgent:
             
         prompt = f"""
         Analyze this transcript and return a JSON object with:
-        1. "summary": A list of 3-5 key takeaways (bullet points).
-        2. "shorts_script": A 60-second viral Short script based on the best insight.
+        1. "summary": A list of 3-5 key takeaways (bullet points). No tables.
+        2. "shorts_script": A 60-second viral Short script based on the best insight. (Plain text only).
+
+        IMPORTANT: Do not use markdown tables in any field. Use only plain text and simple bullet points.
 
         Transcript: {transcript[:15000]}...
         """
         try:
-            return self._invoke_bedrock(prompt)
+            return await self._invoke_bedrock(prompt)
         except Exception as e:
             return {"error": str(e)}
 
-    def repurpose_content(self, transcript: str, format_type: str) -> str:
+    async def repurpose_content(self, transcript: str, format_type: str) -> str:
         """
         Repurposes a video transcript into a Blog Post, Twitter Thread, or LinkedIn Post.
         """
@@ -369,6 +551,8 @@ class BedrockAgent:
         Repurpose the following video transcript into a highly engaging {format_type}.
         Use appropriate formatting (e.g. threads for Twitter, headers for Blog).
         
+        IMPORTANT: Use only plain text and basic markdown (headers, lists). DO NOT USE TABLES.
+
         Transcript: {transcript[:15000]}...
         
         Return JSON:
@@ -377,7 +561,123 @@ class BedrockAgent:
         }}
         """
         try:
-            res = self._invoke_bedrock(prompt)
+            res = await self._invoke_bedrock(prompt)
             return res.get("content", "Error repurposing content.")
         except Exception as e:
             return f"Error repurposing content: {e}"
+
+    async def generate_terrain_niches(self, domain: str, parent_topic: Optional[str], watch_history: list) -> list:
+        """
+        AWS Bedrock-powered terrain expansion.
+        Generates personalised niche sub-topics for the Explore Terrain using Claude.
+        watch_history biases results toward fresh, adjacent topics the user hasn't seen.
+        """
+        if settings.DEMO_MODE:
+            return self._mock_terrain_niches(domain, parent_topic, watch_history)
+
+        history_hint = ""
+        if watch_history:
+            history_hint = (
+                f"\n\nUser has recently explored: {', '.join(watch_history[:10])}. "
+                "Prioritise adjacent niches they haven't discovered yet."
+            )
+
+        depth = "very specific leaf sub-niches" if parent_topic else "distinct sub-domains"
+        prompt = f"""
+You are an expert niche cartographer for a content discovery engine.
+Generate exactly 6 unique, passionate, community-driven {depth} inside:
+
+Domain: "{domain}"
+{f'Parent: "{parent_topic}"' if parent_topic else ""}
+{history_hint}
+
+Rules:
+- Each label is 2-4 words, highly specific (e.g. "Shoegaze Revival" not "Music")
+- Prioritise obscure, high-signal sub-cultures over generic topics
+- No repetition with parent
+
+Return JSON only:
+{{"topics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5", "Topic 6"]}}
+"""
+        try:
+            result = await self._invoke_bedrock(prompt)
+            return result.get("topics", self._mock_terrain_niches(domain, parent_topic, watch_history))
+        except Exception as e:
+            print(f"Bedrock Terrain Gen Failed: {e}")
+            return self._mock_terrain_niches(domain, parent_topic, watch_history)
+
+    def _mock_terrain_niches(self, domain: str, parent_topic: Optional[str], watch_history: list) -> list:
+        """Smart static fallback with watch-history-aware ordering."""
+        TERRAIN_MAP: Dict[str, Dict] = {
+            "Music": {
+                None: ["Electronic Music", "Folk & Acoustic", "Jazz & Blues", "Metal & Noise", "Classical Composition", "World Music"],
+                "Electronic Music": ["Modular Synthesis", "Ambient Drone", "Techno Archaeology", "Hyperpop Production", "Lo-fi Hip Hop", "Broken Beat"],
+                "Folk & Acoustic": ["Celtic Revival", "Appalachian Sound", "Indie Folk", "Fingerstyle Guitar", "Delta Blues", "Nordic Folk"],
+                "Jazz & Blues": ["Modal Jazz History", "Free Jazz Improvisation", "Afrobeat Fusion", "Jazz Harmony Theory", "Latin Jazz", "Bebop Origins"],
+                "Metal & Noise": ["Black Metal Aesthetics", "Doom Drone", "Noise Rock", "Post-Metal Landscapes", "Sludge Metal", "Math Rock"],
+                "Classical Composition": ["Spectralism", "Minimalist Composers", "Baroque Counterpoint", "20th Century Atonal", "Film Score Analysis", "Microtonal Music"],
+            },
+            "Fashion": {
+                None: ["History of Fashion", "Streetwear Culture", "Sustainable Fashion", "Avant-Garde Design", "Vintage Revival", "Fashion Theory"],
+                "History of Fashion": ["Victorian Mourning Dress", "Art Deco Glamour", "Edwardian Corsetry", "Regency Silhouettes", "Baroque Excess", "1920s Flapper Style"],
+                "Streetwear Culture": ["Gorpcore Outdoors", "Techwear Aesthetic", "Japanese Harajuku", "Sneaker Archaeology", "Skate Fashion Roots", "Workwear Revival"],
+                "Sustainable Fashion": ["Zero-Waste Sewing", "Upcycled Couture", "Deadstock Fabrics", "Natural Dyeing", "Repair Culture", "Slow Fashion Philosophy"],
+                "Avant-Garde Design": ["Deconstruction Theory", "Wearable Technology", "Anti-Fashion Movement", "Conceptual Couture", "Gender-Fluid Silhouettes", "Biomimicry Textiles"],
+            },
+            "Science": {
+                None: ["AI & Language Models", "Space Exploration", "Biotechnology", "Quantum Computing", "Neuroscience", "Materials Science"],
+                "AI & Language Models": ["LLM Architecture", "AI Alignment Theory", "Multimodal Models", "Inference Optimization", "Prompt Engineering", "Synthetic Data"],
+                "Space Exploration": ["Mars Geology", "Orbital Mechanics", "Exoplanet Atmospheres", "Space Medicine", "Lunar Economy", "Black Hole Physics"],
+                "Biotechnology": ["CRISPR Ethics", "Synthetic Biology", "Organoids Research", "Longevity Science", "Microbiome Engineering", "Bioinformatics"],
+                "Quantum Computing": ["Quantum Error Correction", "Topological Qubits", "Quantum Cryptography", "Quantum Chemistry", "NISQ Algorithms", "Quantum Advantage"],
+            },
+            "Cinema": {
+                None: ["World Cinema", "Animation Techniques", "Documentary Filmmaking", "Screenwriting", "Cinematography", "Film Restoration"],
+                "World Cinema": ["French New Wave", "Iranian Cinema", "South Korean Thrillers", "Brazilian Cinema Novo", "Japanese Slow Cinema", "Nordic Noir"],
+                "Animation Techniques": ["Stop Motion History", "Rotoscoping Art", "2D Limited Animation", "CGI Breakdown", "Motion Capture Ethics", "Independent Animation"],
+                "Documentary Filmmaking": ["True Crime Ethics", "Nature Cinematography", "Investigative Journalism", "Observational Films", "Mockumentary Craft", "Expository Docs"],
+            },
+            "Art": {
+                None: ["Contemporary Art", "Street Art", "Digital Art", "Photography", "Sculpture", "Art Theory"],
+                "Contemporary Art": ["Post-Internet Art", "Relational Aesthetics", "Bio Art", "Land Art", "Institutional Critique", "Speculative Design"],
+                "Street Art": ["Muralism Roots", "Stencil Art", "Legal Walls", "Graffiti Calligraphy", "Wheatpaste Activism", "3D Street Art"],
+                "Digital Art": ["Generative Art Code", "NFT Art Critique", "AI Art Ethics", "WebGL Experiments", "Pixel Art Revival", "Glitch Aesthetics"],
+            },
+            "Business": {
+                None: ["Startups", "Content Marketing", "Leadership", "Finance & Economics", "Product Management", "Indie Hackers"],
+                "Startups": ["MVP Validation", "Zero to One Philosophy", "Venture Capital", "Bootstrapped SaaS", "Founder Psychology", "Startup Post-Mortems"],
+                "Content Marketing": ["Community-Led Growth", "Viral Loop Design", "SEO in LLM Era", "Long-Form Video Essays", "Newsletter Economics", "Podcast Monetization"],
+            },
+            "Food": {
+                None: ["Street Food", "Fermentation Science", "Ancient Recipes", "Food Anthropology", "Restaurant Culture", "Food Chemistry"],
+                "Street Food": ["Hawker Culture Singapore", "Oaxacan Tlayudas", "Bangkok Night Markets", "Istanbul Street Food", "Peruvian Ceviche History", "Ethiopian Injera Tradition"],
+                "Fermentation Science": ["Kimchi Microbiology", "Sourdough Starter Science", "Miso Brewing Traditions", "Kefir Cultures", "Tempeh Craft", "Lacto-Fermentation"],
+            },
+            "Travel": {
+                None: ["POV City Walks", "Dangerous Roads", "Luxury Hotel Tours", "Solo Female Travel", "Cabin Builds", "Van Life Content"],
+            },
+            "Gaming": {
+                None: ["Rage Compilations", "Lore Explained", "Speedruns (Any%)", "Esports Highlights", "Cozy Games", "Retro Emulation"],
+            },
+            "Education": {
+                None: ["Study With Me", "Life Hacks", "How Things Work", "Financial Independence", "History Animations", "Language Learning"],
+            },
+            "Comedy": {
+                None: ["Public Pranks", "Relatable Skits", "Roast Battles", "Podcast Clips", "Parody Songs", "Stand-up Specials"],
+            },
+        }
+
+        domain_data = TERRAIN_MAP.get(domain, {})
+        result = domain_data.get(parent_topic) or domain_data.get(None) or [
+            f"Deep {domain} Study", f"{domain} History", f"Applied {domain}",
+            f"{domain} Theory", f"Modern {domain}", f"Alternative {domain}"
+        ]
+
+        # Watch-history personalisation: surface unseen niches first
+        if watch_history:
+            history_str = " ".join(watch_history).lower()
+            seen = [t for t in result if any(w in t.lower() for w in history_str.split())]
+            unseen = [t for t in result if t not in seen]
+            result = unseen + seen
+
+        return result[:6]

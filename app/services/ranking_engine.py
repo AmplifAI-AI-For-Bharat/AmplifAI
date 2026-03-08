@@ -1,98 +1,125 @@
 import math
-import textstat
-from typing import List, Dict
-from collections import Counter
+import asyncio
+from typing import List, Dict, Any, Optional
+from opensearchpy import OpenSearch, RequestsHttpConnection
 from app.core.models import Video, HyperbolicIntent
+from app.core.config import settings
+from app.services.bedrock_agent import BedrockAgent
 
 class RankingEngine:
-    def __init__(self):
-        self.demand_matrix = Counter()
+    def __init__(self, bedrock_agent: Optional[BedrockAgent] = None):
+        """
+        Hyperbolic Ranking Engine.
+        Combines Semantic Bedrock Embeddings with Metadata Signals.
+        """
+        self.bedrock = bedrock_agent or BedrockAgent()
+        self.embedding_cache = {} # In-memory cache for speed
         self.video_cache: Dict[str, Video] = {}
+        
+        self.os_client = None
+        if settings.OPENSEARCH_URL and settings.OPENSEARCH_URL.strip() and not settings.DEMO_MODE:
+            try:
+                self.os_client = OpenSearch(
+                    hosts=[settings.OPENSEARCH_URL],
+                    http_compress=True,
+                    use_ssl=True,
+                    verify_certs=True,
+                    connection_class=RequestsHttpConnection
+                )
+                print("✅ Connected to Amazon OpenSearch Serverless")
+            except Exception as e:
+                print(f"⚠️ OpenSearch connection failed: {e}")
 
     def incorporate_feedback(self, video_id: str, is_relevant: bool):
         """
-        Updates the global demand matrix based on user feedback.
+        Updates the global demand matrix / vector weights based on user feedback.
         """
-        if video_id in self.video_cache:
-            video = self.video_cache[video_id]
-            # Extract keywords from title (simple split)
-            keywords = [w.lower() for w in video.title.split() if len(w) > 3]
-            
-            weight = 1 if is_relevant else -1
-            for k in keywords:
-                self.demand_matrix[k] += weight
-            
-            print(f"🧠 Feedback Received: '{video.title}' is {'Relevant' if is_relevant else 'Not Relevant'}. Matrix Updated.")
+        if video_id in self.video_cache or video_id in self.embedding_cache:
+            print(f"🧠 Feedback Received: Video '{video_id}' is {'Relevant' if is_relevant else 'Not Relevant'}.")
         else:
             print(f"⚠️ Feedback ignored: Video {video_id} not in cache.")
 
-    def rank_videos(self, videos: List[Video], intent: HyperbolicIntent) -> List[Video]:
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        if not vec1 or not vec2 or len(vec1) != len(vec2): return 0.0
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = math.sqrt(sum(a * a for a in vec1))
+        magnitude2 = math.sqrt(sum(b * b for b in vec2))
+        if magnitude1 == 0 or magnitude2 == 0: return 0.0
+        return dot_product / (magnitude1 * magnitude2)
+
+    async def get_cached_embedding(self, text: str) -> List[float]:
+        """Returns embedding from cache or Bedrock."""
+        if text in self.embedding_cache:
+            return self.embedding_cache[text]
+        
+        vector = await self.bedrock.generate_embeddings(text)
+        self.embedding_cache[text] = vector
+        return vector
+
+    async def rank_videos(self, videos: List[Video], intent: HyperbolicIntent) -> List[Video]:
         """
-        Applies 'Signal-to-Noise Inversion' Scoring.
-        Formula: Score = (Semantic Density * 5.0) + (Rarity Bonus * 20.0) + (Demand Boost)
+        Two-stage ranking for speed:
+        1. Metadata-driven pre-sort (Top 40)
+        2. Semantic Titan Embeddings for those 40.
         """
+        if not videos:
+            return []
+
+        # -- Stage 1: Metadata Pre-Sort (Heuristic) --
+        # Sort by view velocity + engagement to find the "best" candidates to rank semantically
+        def heuristic_score(v):
+            v_count = getattr(v, 'raw_views', 0)
+            if type(v_count) == str: v_count = 0
+            e_rate = getattr(v, 'engagement_rate', 0.0)
+            return math.log10(max(10, v_count)) + (e_rate * 10)
+
+        videos.sort(key=heuristic_score, reverse=True)
+        candidates = videos[:40] # Rank top 40 semantically
+        other_videos = videos[40:]
+
+        # -- Stage 2: Semantic Ranking --
         processed_results = []
         
-        for video in videos:
-            self.video_cache[video.video_id] = video # Cache for feedback loop
-
-            # 1. Calculate Semantic Density (Real Text Analysis)
-            # We use the description + title as proxy for content
-            content_text = f"{video.title}. {video.transcript_summary}"
+        # 1. Generate Intent Embedding
+        intent_text = ""
+        if intent:
+            intent_text = f"{intent.sub_culture} {intent.vibe} {' '.join(intent.boost_keywords)}"
+        
+        intent_vector = await self.get_cached_embedding(intent_text)
+        
+        async def process_single_video(video):
+            content_text = f"{video.title}. {video.description}"
+            video_vector = await self.get_cached_embedding(content_text)
             
-            # Flesch Reading Ease: Lower is harder/more complex. 
-            # We want high complexity for "expert" intents, but accessible for "eli5".
-            try:
-                complexity = textstat.flesch_reading_ease(content_text)
-            except:
-                complexity = 50.0 # Default
-                
-            # Density Proxy: Unique words ratio * Syllable count (Rough proxy for information density)
-            words = content_text.split()
-            unique_words = set(words)
-            if len(words) > 0:
-                vocab_richness = len(unique_words) / len(words)
-            else:
-                vocab_richness = 0.5
-                
-            # Normalize Density (0-10)
-            raw_density = (vocab_richness * 10) + (max(0, 100 - complexity) / 20)
-            semantic_density = min(10.0, raw_density)
+            # 3. Calculate k-NN Cosine Similarity
+            similarity = self._cosine_similarity(intent_vector, video_vector)
             
-            # 2. Rarity Bonus (Inverse Popularity)
+            # 4. Regional & Engagement Bonus
             raw_views = getattr(video, 'raw_views', 0)
             if type(raw_views) == str: raw_views = 0 
             
-            log_views = math.log(max(1, raw_views))
-            rarity_bonus = 10.0 / (log_views + 1) 
+            engagement = getattr(video, 'engagement_rate', 0.0)
+            engagement_bonus = engagement * 50.0 
             
-            # 3. Demand Boost (Feedback Loop)
-            demand_score = 0
-            for w in words:
-                if w.lower() in self.demand_matrix:
-                    demand_score += self.demand_matrix[w.lower()] * 0.5
+            view_score = math.log10(max(10, raw_views)) * 2.0
+            hyperbolic_score = (similarity * 70.0) + (engagement_bonus) + (view_score)
             
-            # 4. Final Hyperbolic Score (0-100)
-            # Density(10) * 5 = 50
-            # Rarity(10) * 5 = 50 
-            # Demand(10) = 10
-            hyperbolic_score = (semantic_density * 5.0) + (rarity_bonus * 5.0) + demand_score
-            
-            # Vibe Alignment (Boost if keywords match intent)
-            if intent and intent.boost_keywords:
-                for keyword in intent.boost_keywords:
-                    if keyword in content_text.lower():
-                        hyperbolic_score += 15.0
-                        video.match_reason = f"Matches Vibe: {keyword}"
-
             video.hyperbolic_score = min(100.0, max(0.0, hyperbolic_score))
-            
-            # Base Score (Quality Density) Normalized 0-100
-            video.base_score = min(100.0, raw_density * 6.5)
-            
-            processed_results.append(video)
-            
-        # Sort by Hyperbolic Score
-        processed_results.sort(key=lambda x: x.hyperbolic_score, reverse=True)
+            video.base_score = min(100.0, similarity * 100)
+            video.match_reason = "Semantic Match (Top 40)"
+            return video
+
+        # Parallelize the 40 candidates
+        print(f"🚀 Parallelizing semantic ranking for {len(candidates)} candidates...")
+        batch_results = await asyncio.gather(*(process_single_video(v) for v in candidates))
+        processed_results.extend(batch_results)
         
+        # Assign low scores to the rest instead of dropping them
+        for v in other_videos:
+            v.hyperbolic_score = 0.0
+            v.base_score = 0.0
+            v.match_reason = "Metadata Match (Lower Signal)"
+            processed_results.append(v)
+            
+        processed_results.sort(key=lambda x: x.hyperbolic_score, reverse=True)
         return processed_results

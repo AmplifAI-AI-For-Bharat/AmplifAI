@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 venv/
 .env
+.env.local
 
 # Node
 node_modules/
@@ -16,3 +17,16 @@ dist/
 
 # Custom
 .gemini/
+
+# Logs
+*.log
+uvicorn.log
+
+# Debug/test scripts (not needed in production)
+debug_*.py
+test_*.py
+test.py
+
+# Temp audio files
+*.m4a
+*.mp3

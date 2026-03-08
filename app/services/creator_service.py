@@ -1,5 +1,6 @@
-from typing import List, Dict, Any
-from app.services.scraper import ScraperService
+from typing import List, Dict, Any, Optional
+from app.services.youtube_client import YouTubeClient
+from app.services.storage_service import StorageService
 from app.services.ranking_engine import RankingEngine
 from app.services.bedrock_agent import BedrockAgent
 from app.core.models import Video, CreatorProfile
@@ -9,10 +10,14 @@ import asyncio
 class CreatorService:
     # ... (init and analyze_niche)
 
-    def __init__(self):
-        self.scraper = ScraperService()
-        self.ranking_engine = RankingEngine()
-        self.bedrock_agent = BedrockAgent()
+    def __init__(self, youtube_client: Optional[YouTubeClient] = None,
+                 bedrock_agent: Optional[BedrockAgent] = None,
+                 ranking_engine: Optional[RankingEngine] = None):
+        from app.services.storage_service import StorageService
+        self.youtube = youtube_client or YouTubeClient()
+        self.storage = StorageService()
+        self.ranking_engine = ranking_engine or RankingEngine(bedrock_agent=bedrock_agent)
+        self.bedrock_agent = bedrock_agent or BedrockAgent()
 
     async def analyze_niche(self, topic: str, recursion_depth: int = 0, limit: int = 20) -> Dict[str, Any]:
         """
@@ -24,7 +29,24 @@ class CreatorService:
         print(f"🧭 Creator Compass: Analyzing '{topic}' (Depth: {recursion_depth}, Limit: {search_limit})...")
         
         # 1. Reconnaissance
-        incumbents = self.scraper.search_videos(topic, limit=search_limit)
+        incumbents_raw = await self.youtube.deep_search([topic], max_results_per_query=search_limit)
+        
+        # Convert raw dicts to Video objects
+        incumbents = []
+        for data in incumbents_raw:
+            video_kwargs = {
+                "video_id": data.get("video_id"),
+                "title": data.get("title"),
+                "description": data.get("description", ""),
+                "channel": data.get("channel_title"),
+                "views": str(data.get("views")),
+                "published": data.get("published_at"),
+                "tags": data.get("tags", []),
+                "transcript_summary": data.get("description", ""), # Default to description for JIT analysis
+                "raw_views": data.get("views", 0),
+                "like_count": data.get("likes", 0)
+            }
+            incumbents.append(Video(**video_kwargs))
         
         if not incumbents:
             return {"topic": topic, "error": "No data found."}
@@ -35,7 +57,7 @@ class CreatorService:
             # If score is 0, it means it's fresh (not from S3 cache)
             if video.hyperbolic_score == 0:
                 # 1. Analyze with Bedrock
-                analysis = self.bedrock_agent.analyze_semantic_density(video.transcript_summary)
+                analysis = await self.bedrock_agent.analyze_semantic_density(video.transcript_summary)
                 
                 # 2. Update Video Scores
                 video.hyperbolic_score = analysis.get('density_score', 0)
@@ -44,11 +66,11 @@ class CreatorService:
                 video.match_reason = f"Density: {video.hyperbolic_score}/100 | Vibe: {analysis.get('noise_flags', [])}"
                 
                 # 3. Save to S3 "Pantry"
-                self.scraper.storage.upload_video_data(video.dict())
+                self.storage.upload_video_data(video.dict())
 
         # 2. Analyze Value Density
         # We pass 'incumbents' which now have updated scores from Bedrock
-        scored_incumbents = self.ranking_engine.rank_videos(incumbents, None)
+        scored_incumbents = await self.ranking_engine.rank_videos(incumbents, None)
 
         total_views = 0
         total_density = 0
@@ -111,7 +133,7 @@ class CreatorService:
         # If saturated and top-level, find sub-niches
         if recursion_depth == 0 and market_gap_score < 60:
             print(f"📉 Saturated Niche detected. Drilling down into sub-niches for '{topic}'...")
-            sub_niches = self.bedrock_agent.suggest_sub_niches(topic)
+            sub_niches = await self.bedrock_agent.suggest_sub_niches(topic)
             
             # Simple serial execution for safety/stability in prototype
             # (Parallel executions can be added via asyncio.to_thread if needed)
@@ -139,7 +161,7 @@ class CreatorService:
         print(f"🧠 Generating Assessment for Profile: {profile.primary_skills} | Risk: {profile.risk_tolerance}")
         
         # 1. Get Strategic Suggestions
-        suggestions = self.bedrock_agent.suggest_strategic_niches(profile)
+        suggestions = await self.bedrock_agent.suggest_strategic_niches(profile)
         
         results = []
         for niche in suggestions:
@@ -163,11 +185,11 @@ class CreatorService:
 
     # --- Creator Studio Tools ---
 
-    def generate_script(self, topic: str, angle: str) -> str:
-        return self.bedrock_agent.generate_content_script(topic, angle)
+    async def generate_script(self, topic: str, angle: str) -> str:
+        return await self.bedrock_agent.generate_content_script(topic, angle)
 
-    def summarize_video(self, transcript: str) -> dict:
-        return self.bedrock_agent.summarize_video(transcript)
+    async def summarize_video(self, transcript: str) -> dict:
+        return await self.bedrock_agent.summarize_video(transcript)
 
-    def repurpose_content(self, transcript: str, format_type: str) -> str:
-        return self.bedrock_agent.repurpose_content(transcript, format_type)
+    async def repurpose_content(self, transcript: str, format_type: str) -> str:
+        return await self.bedrock_agent.repurpose_content(transcript, format_type)

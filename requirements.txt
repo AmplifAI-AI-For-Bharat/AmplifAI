@@ -7,3 +7,4 @@ requests
 textstat
 yt-dlp
 python-multipart
+mangum
