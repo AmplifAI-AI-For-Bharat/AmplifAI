@@ -219,6 +219,7 @@ class VisionRequest(BaseModel):
 @app.post("/creator/community-vision")
 async def get_community_vision(req: VisionRequest):
     return await creator_service.generate_community_vision(req.community_name, req.quiz_context)
+@app.post("/creator/tools/script")
 async def generate_script(req: ScriptRequest):
     return {"script": await creator_service.generate_script(req.topic, req.angle)}
 
