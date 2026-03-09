@@ -50,18 +50,13 @@ function App() {
     if (savedContext) {
       const parsed = JSON.parse(savedContext);
       setUserContext(parsed);
-
-      // User context is persisted, but personal peak is transient
-      // (Removed legacy persistence for personalizedMountain per user request)
-
       if (parsed.deep_interests && parsed.deep_interests.length > 0) {
         handleSearch('', { id: 'returning_user', context: parsed.interests }, parsed);
       }
     } else {
-      // Bypassing InterestPicker to show Discovery Tab immediately
+      // Bypassing InterestPicker to show Hero section immediately
       setShowInterestPicker(false);
-      // Optional: Fetch a default "Discovery" feed
-      handleSearch('new trends high signal', { id: 'new_user', context: ['Technology', 'Science', 'Culture'] });
+      // No automatic handleSearch call here to prevent the "Analyzing..." screen on first land
     }
   }, []);
 
