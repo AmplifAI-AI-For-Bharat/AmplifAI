@@ -3,6 +3,9 @@ import os
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
 from typing import List, Dict, Optional, Any
 from app.core.models import FeedRequest, UserContext, Video, CreatorProfile, FeedbackRequest, SubCulture
 from app.core.config import settings
@@ -131,13 +134,12 @@ async def generate_atlas_mapping(req: AtlasMappingRequest):
     Target Audience: {req.audience}
     Tools: {req.tools}
     Language: {req.language}
-    Selected Vibe: {req.example}
     
     Return a JSON object containing:
     1. "placement_string": A magical-sounding placement sentence (e.g. "Music -> Punjabi Music, Education -> Storytelling").
-    Return a JSON object containing:
-    1. "placement_string": A magical-sounding placement sentence (e.g. "Music -> Punjabi Music, Education -> Storytelling").
     2. "domain_id": The closest matching domain ID from: ["music", "fashion", "science", "cinema", "art", "business", "food", "travel", "gaming", "education", "comedy"].
+    3. "personalized_name": A unique 2-3 word name for this creator's niche "mountain" (e.g. "The Synthwave Sanctuary").
+    4. "mountain_steps": A list of exactly 5 specific, passionate, and evocative titles for the "steps" of this creator's journey, from base to peak (e.g., ["The Lofi Foundation", "Analog Experiments", "Midnight Sessions", "The Vinyl Vault", "The Analog Master"]). These should reflect the specific sub-niche identified.
     """
     DOMAIN_COORDS = {
         "music": {"x": -40, "z": 0},
@@ -159,7 +161,15 @@ async def generate_atlas_mapping(req: AtlasMappingRequest):
             return {
                 "placement_string": f"Culture -> {req.language} Creators, Format -> {req.style.title()}",
                 "domain_id": domain_id,
-                "coordinates": DOMAIN_COORDS.get(domain_id, {"x": 0, "z": 0})
+                "coordinates": DOMAIN_COORDS.get(domain_id, {"x": 0, "z": 0}),
+                "personalized_name": f"{req.style.title()} Explorer Peak",
+                "mountain_steps": [
+                    f"The {req.interests[0]} Foundation",
+                    f"{req.style.title()} Masterclass",
+                    f"{req.audience.title()} Engagement",
+                    f"Advanced {req.tools[0] if req.tools else 'Creative'} Workflows",
+                    f"The {req.personalized_name or 'Personal'} Peak Mastery"
+                ]
             }
             
         res = await bedrock_agent._invoke_bedrock(prompt)
@@ -167,7 +177,9 @@ async def generate_atlas_mapping(req: AtlasMappingRequest):
         return {
             "placement_string": res.get("placement_string", f"Mapped to {req.language} communities"),
             "domain_id": domain_id,
-            "coordinates": DOMAIN_COORDS.get(domain_id, {"x": 0, "z": 0})
+            "coordinates": DOMAIN_COORDS.get(domain_id, {"x": 0, "z": 0}),
+            "personalized_name": res.get("personalized_name", "Creator Peak"),
+            "mountain_steps": res.get("mountain_steps", ["Foundation", "Growth", "Engagement", "Mastery", "Legacy"])
         }
     except Exception as e:
         print(f"Atlas Mapping Failed: {e}")
@@ -183,16 +195,36 @@ class ScriptRequest(BaseModel):
     topic: str
     angle: str
 
+class PlannerRequest(BaseModel):
+    niche: str
+    platforms: List[str]
+    days: int
+    tone: str
+
 class RepurposeRequest(BaseModel):
     transcript: str
+    format: str
+
+class ForgeRequest(BaseModel):
+    url: str
     format: str
 
 class SummaryRequest(BaseModel):
     transcript: str
 
-@app.post("/creator/tools/script")
+class VisionRequest(BaseModel):
+    community_name: str
+    quiz_context: Dict[str, Any]
+
+@app.post("/creator/community-vision")
+async def get_community_vision(req: VisionRequest):
+    return await creator_service.generate_community_vision(req.community_name, req.quiz_context)
 async def generate_script(req: ScriptRequest):
     return {"script": await creator_service.generate_script(req.topic, req.angle)}
+
+@app.post("/creator/tools/planner")
+async def generate_planner(req: PlannerRequest):
+    return {"content": await creator_service.generate_content_planner(req.niche, req.platforms, req.days, req.tone)}
 
 @app.post("/creator/tools/summarize")
 async def summarize_video(req: SummaryRequest):
@@ -201,6 +233,43 @@ async def summarize_video(req: SummaryRequest):
 @app.post("/creator/tools/repurpose")
 async def repurpose_content(req: RepurposeRequest):
     return {"content": await creator_service.repurpose_content(req.transcript, req.format)}
+
+@app.post("/creator/tools/forge")
+async def forge_content(req: ForgeRequest):
+    """
+    Takes a YouTube URL, extracts the transcript, and uses Bedrock to repurpose
+    it into high-signal content for Twitter, LinkedIn, Hashnode, or Reels.
+    """
+    video_id = youtube_client.extract_video_id(req.url)
+    if not video_id:
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL")
+        
+    print(f"🔨 Forging Content for Video ID: {video_id} -> {req.format.upper()}")
+    
+    transcript = await youtube_client.get_captions(video_id)
+    if not transcript:
+        # Fallback 1: Try Audio Extraction
+        try:
+             audio_path = await audio_processor.extract_transcript(video_id)
+             if audio_path:
+                  translated = await translation_engine.translate_video(audio_path)
+                  transcript = translated.get("translated_text", "")
+             
+             # Fallback 2: If audio extraction fails or no API keys, grab Title & Description instead
+             if not transcript:
+                  print(f"⚠️ Transcript unavailable for {video_id}. Using Video Metadata as fallback context.")
+                  videos = await youtube_client.get_video_details([video_id])
+                  if videos:
+                      v = videos[0]
+                      transcript = f"Title: {v.get('title', '')}\n\nDescription: {v.get('description', '')}"
+                  else:
+                      transcript = "General content creation tips." # Extreme fallback
+        except Exception as e:
+             raise HTTPException(status_code=500, detail=f"Could not extract transcript or metadata: {e}")
+             
+    # Route through the existing repurpose pipeline with the exact format
+    result = await creator_service.repurpose_content(transcript, req.format)
+    return {"content": result}
 
 class TranslateRequest(BaseModel):
     text: str
@@ -244,16 +313,19 @@ async def translate_video_endpoint(req: Dict[str, str]):
             if os.path.exists(audio_path):
                 os.remove(audio_path)
 
-    # 3. Fallback: Translate the Title text
-    print(f"📝 [Video Translation] Falling back to title text translation for: {title}")
-    text_result = await translation_engine.translate_text(title, target_lang="en")
+    # 3. Fallback: Translate the Title + Description text
+    description = req.get("description", "")
+    full_text = f"Title: {title}\nDescription: {description}" if description else title
+    
+    print(f"📝 [Video Translation] Falling back to text translation for: {title}")
+    text_result = await translation_engine.translate_text(full_text, target_lang="en")
     
     # Enrich result to look like video translation
     return {
-        "original_text": title,
-        "translated_text": text_result.get("translated_text", title),
+        "original_text": full_text,
+        "translated_text": text_result.get("translated_text", full_text),
         "audio_base64": text_result.get("audio_base64", ""),
-        "provider": f"{text_result.get('provider', 'Sarvam')} (Title Fallback)"
+        "provider": f"{text_result.get('provider', 'Sarvam')} (Text Fallback)"
     }
 
 @app.post("/feed")
@@ -447,4 +519,21 @@ async def get_content_opportunities(req: AnalyticsRequest):
         )
         return {"success": True, "data": data}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/creator/analytics/overview")
+async def get_analytics_overview(req: AnalyticsRequest):
+    """
+    Unified endpoint for all dashboard metrics (growth, community, opportunities).
+    Prevents UI lag by reducing concurrent network requests.
+    """
+    try:
+        data = await analytics_service.get_overview_stats(
+            channel_id=req.channel_id,
+            niche=req.niche,
+            interests=req.interests
+        )
+        return {"success": True, "data": data}
+    except Exception as e:
+        print(f"❌ Analytics Overview Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

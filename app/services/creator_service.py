@@ -188,8 +188,14 @@ class CreatorService:
     async def generate_script(self, topic: str, angle: str) -> str:
         return await self.bedrock_agent.generate_content_script(topic, angle)
 
+    async def generate_content_planner(self, niche: str, platforms: List[str], days: int, tone: str) -> str:
+        return await self.bedrock_agent.generate_content_planner(niche, platforms, days, tone)
+
     async def summarize_video(self, transcript: str) -> dict:
         return await self.bedrock_agent.summarize_video(transcript)
 
     async def repurpose_content(self, transcript: str, format_type: str) -> str:
         return await self.bedrock_agent.repurpose_content(transcript, format_type)
+
+    async def generate_community_vision(self, community_name: str, quiz_context: Dict[str, Any]) -> Dict[str, Any]:
+        return await self.bedrock_agent.generate_community_vision(community_name, quiz_context)

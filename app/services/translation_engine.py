@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import base64
 import os
+import boto3
 from typing import Optional, Dict, Any
 from app.core.config import settings
 
@@ -13,12 +14,21 @@ class TranslationEngine:
         # [NEW] Custom Endpoint Support for Enterprise/Proxy users
         # Default Sarvam endpoint: https://api.sarvam.ai/v1/translate
         custom_endpoint = os.getenv("SARVAM_ENDPOINT", "")
-        self.sarvam_url = custom_endpoint if custom_endpoint and "YOUR" not in custom_endpoint else "https://api.sarvam.ai/translate"
+        self.sarvam_url = custom_endpoint if custom_endpoint and "YOUR" not in custom_endpoint else "https://api.sarvam.ai/v1/translate"
         
-        # TTS endpoint
+        # TTS endpoints (Sarvam - Deprecated in favor of Polly)
         self.sarvam_tts_url = "https://api.sarvam.ai/text-to-speech"
         self.sarvam_sttt_url = "https://api.sarvam.ai/speech-to-text-translate"
         self.sarvam_stt_url = "https://api.sarvam.ai/speech-to-text"
+
+        # AWS Polly Client
+        print(f"🎙️ [Polly] Initializing Amazon Polly in {settings.AWS_REGION}...")
+        self.polly = boto3.client(
+            "polly",
+            region_name=settings.AWS_REGION or "us-east-1",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
 
     async def translate_text(self, text: str, target_lang: str = "hi") -> Dict[str, Any]:
         """
@@ -32,6 +42,47 @@ class TranslationEngine:
         
         # Bhashini implementation would go here if Sarvam is missing
         return {"error": "Sarvam key missing. Bhashini integration pending production credentials."}
+
+    async def _generate_polly_audio(self, text: str, target_lang_code: str) -> str:
+        """
+        Generates base64 audio using Amazon Polly Neural Engine.
+        """
+        # Map target_lang_code to Polly VoiceId
+        # Default to English (Joanna) if mapping fails
+        voice_map = {
+            "hi-IN": "Kajal",     # Hindi Female (Neural)
+            "en-IN": "Joanna",    # English Female (Neural)
+            "te-IN": "Shruti",    # Telugu Female (Standard fallback)
+            "ta-IN": "Vani"       # Tamil Female (Standard fallback)
+        }
+        
+        # Check if language is supported by Neural
+        neural_langs = ["hi-IN", "en-US", "en-GB", "en-IN"] # simplified list
+        
+        voice_id = voice_map.get(target_lang_code, "Joanna")
+        engine = "neural" if target_lang_code in neural_langs else "standard"
+
+        print(f"🔊 [Polly] Synthesizing '{text[:30]}...' with Voice: {voice_id} ({engine})")
+        
+        try:
+            # Run in thread pool to avoid blocking async loop since boto3 is sync
+            def synthesize():
+                response = self.polly.synthesize_speech(
+                    Engine=engine,
+                    LanguageCode=target_lang_code if target_lang_code in ["hi-IN", "en-IN", "en-US"] else "en-US",
+                    Text=text,
+                    OutputFormat="mp3",
+                    VoiceId=voice_id
+                )
+                if "AudioStream" in response:
+                    return base64.b64encode(response["AudioStream"].read()).decode("utf-8")
+                return ""
+
+            audio_base64 = await asyncio.to_thread(synthesize)
+            return audio_base64
+        except Exception as e:
+            print(f"⚠️ [Polly] Synthesis Failed: {str(e)}")
+            return ""
 
     async def _translate_sarvam(self, text: str, target_lang: str) -> Dict[str, Any]:
         headers = {
@@ -58,13 +109,10 @@ class TranslationEngine:
         }
         
         print(f"🌐 [Translation] Requesting Sarvam AI: {text[:30]}... ({source_lang} -> {target_lang_code})")
-        print(f"🔗 [Translation] URL: {self.sarvam_url}")
         
         try:
             async with aiohttp.ClientSession() as session:
-                # Text Translation
                 async with session.post(self.sarvam_url, json=payload, headers=headers) as resp:
-                    print(f"📡 [Translation] Status: {resp.status}")
                     if resp.status != 200:
                         error_text = await resp.text()
                         print(f"❌ [Translation] API Error: {error_text}")
@@ -74,30 +122,15 @@ class TranslationEngine:
                     translated_text = translation_data.get("translated_text", "")
                     print(f"✅ [Translation] Success: {translated_text[:30]}...")
 
-                # Text to Speech (TTS)
-                tts_payload = {
-                    "inputs": [translated_text],
-                    "target_language_code": target_lang_code,
-                    "speaker_gender": "Female",
-                    "model": "bulbul:v1"
+                # Use Amazon Polly for TTS instead of Sarvam
+                audio_base64 = await self._generate_polly_audio(translated_text, target_lang_code)
+                
+                return {
+                    "original_text": text,
+                    "translated_text": translated_text,
+                    "audio_base64": audio_base64,
+                    "provider": "Sarvam AI (Translate) + Amazon Polly (TTS)"
                 }
-                print(f"🔊 [TTS] Generating Audio for: {translated_text[:30]}...")
-                async with session.post(self.sarvam_tts_url, json=tts_payload, headers=headers) as tts_resp:
-                    audio_base64 = ""
-                    if tts_resp.status == 200:
-                        tts_data = await tts_resp.json()
-                        audio_base64 = tts_data.get("audios", [""])[0]
-                        print(f"✅ [TTS] Audio generated ({len(audio_base64)} chars)")
-                    else:
-                        error_tts = await tts_resp.text()
-                        print(f"⚠️ [TTS] Failed: {error_tts}")
-                    
-                    return {
-                        "original_text": text,
-                        "translated_text": translated_text,
-                        "audio_base64": audio_base64,
-                        "provider": "Sarvam AI (Saaras v3)"
-                    }
         except Exception as e:
             print(f"❌ [Translation] Internal Failure: {str(e)}")
             return {"error": f"Internal translation failure: {str(e)}"}
@@ -116,15 +149,15 @@ class TranslationEngine:
         print(f"🌐 [Audio Translation] Sending to Sarvam STTT: {audio_path}")
         
         try:
-            # We use Saaras v2.5 or v3 speech-to-text-translate endpoint
-            # multipart/form-data with 'file' and 'model'
             data = aiohttp.FormData()
-            data.add_field('file', open(audio_path, 'rb'), filename=os.path.basename(audio_path))
-            data.add_field('model', 'saaras:v1')
+            data.add_field('file', 
+                           open(audio_path, 'rb'), 
+                           filename=os.path.basename(audio_path),
+                           content_type='audio/wav')
+            data.add_field('model', 'saaras:v2.5')
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.sarvam_sttt_url, data=data, headers=headers) as resp:
-                    print(f"📡 [Audio Translation] Status: {resp.status}")
                     if resp.status != 200:
                         error_text = await resp.text()
                         print(f"❌ [Audio Translation] API Error: {error_text}")
@@ -134,11 +167,14 @@ class TranslationEngine:
                     transcript = result.get("transcript", "")
                     print(f"✅ [Audio Translation] Success: {transcript[:50]}...")
                     
+                    # Generate Polly Audio for the transcript
+                    audio_base64 = await self._generate_polly_audio(transcript, "en-IN")
+                    
                     return {
                         "original_text": "Audio Content",
                         "translated_text": transcript,
-                        "audio_base64": "", 
-                        "provider": "Sarvam AI (Saaras v3) STTT"
+                        "audio_base64": audio_base64, 
+                        "provider": "Sarvam AI STTT + Amazon Polly (TTS)"
                     }
         except Exception as e:
             print(f"❌ [Audio Translation] Internal Failure: {str(e)}")

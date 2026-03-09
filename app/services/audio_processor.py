@@ -5,6 +5,7 @@ This module is triggered ONLY when official YouTube captions are unavailable.
 
 import os
 import asyncio
+import subprocess
 from typing import Optional
 from app.core.config import settings
 
@@ -32,42 +33,63 @@ class AudioProcessor:
 
     async def _download_audio_snippet(self, video_id: str) -> Optional[str]:
         """
-        Uses yt-dlp to download the first 30 seconds of audio in m4a format.
-        m4a is natively supported by Sarvam AI.
+        Uses yt-dlp to download and ffmpeg to convert to 16kHz WAV.
+        WAV is the most compatible format for various ASR engines.
         """
-        output_path = f"/tmp/{video_id}.m4a"
-        yt_dlp_path = "yt-dlp" # Use system path
+        temp_path = f"/tmp/{video_id}_raw"
+        output_path = f"/tmp/{video_id}.wav"
         
-        # Command to download only the first 30 seconds of the best audio (m4a preferred)
-        # --download-sections "*0-30" pulls only the first 30s
-        command = [
-            yt_dlp_path,
-            "-f", "bestaudio[ext=m4a]/bestaudio",
+        # 1. Download best audio
+        download_command = [
+            "yt-dlp",
+            "-f", "bestaudio",
             "--download-sections", "*0-30",
             "--force-overwrites",
-            "-o", output_path,
+            "-o", temp_path,
             f"https://www.youtube.com/watch?v={video_id}"
         ]
         
-        print(f"   📡 Downloading 30s audio snippet for {video_id}...")
+        print(f"   📡 Downloading audio for {video_id}...")
         try:
+            # Download
             process = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *download_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
+            await process.communicate()
             
-            if process.returncode == 0 and os.path.exists(output_path):
-                print(f"   ✅ Audio snippet saved: {output_path} ({os.path.getsize(output_path)} bytes)")
+            if process.returncode != 0:
+                print(f"   ❌ yt-dlp failed.")
+                return None
+
+            # 2. Convert to standard WAV (16kHz, mono) using ffmpeg
+            print(f"   🎬 Converting to WAV format...")
+            convert_command = [
+                "ffmpeg", "-y",
+                "-i", temp_path,
+                "-ar", "16000",
+                "-ac", "1",
+                output_path
+            ]
+            
+            conv_proc = await asyncio.create_subprocess_exec(
+                *convert_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            await conv_proc.communicate()
+
+            # Cleanup temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+            if conv_proc.returncode == 0 and os.path.exists(output_path):
+                print(f"   ✅ Audio converted: {output_path} ({os.path.getsize(output_path)} bytes)")
                 return output_path
             else:
-                print(f"   ❌ yt-dlp failed: {stderr.decode()}")
                 return None
+                
         except Exception as e:
-            print(f"   ❌ Subprocess Error: {e}")
+            print(f"   ❌ Audio Processing Error: {e}")
             return None
-
-    async def _transcribe_saaras(self, audio_path: str) -> str:
-        # This will be replaced by the STTT logic in TranslationEngine
-        return "Legacy transcription method."

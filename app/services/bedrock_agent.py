@@ -1,7 +1,7 @@
 import json
 import boto3
 import asyncio
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from app.core.config import settings
 from app.core.models import UserContext, HyperbolicIntent, CreatorProfile, SubCulture
 
@@ -42,6 +42,7 @@ class BedrockAgent:
             "target_audience": "Who in India is this for?",
             "boost_keywords": ["list including regional terms in English/Hindi/Tamil/Telugu script if relevant"],
             "suppress_keywords": ["list"],
+            "domain_id": "closest matching domain from [music, fashion, science, cinema, art, business, food, travel, gaming, education, comedy]",
             "is_ambiguous": false,
             "potential_intents": []
         }}
@@ -130,7 +131,7 @@ class BedrockAgent:
         """
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
+            "max_tokens": 2000,
             "messages": [
                 {
                     "role": "user",
@@ -242,21 +243,24 @@ class BedrockAgent:
                         vibe="Business & Strategic",
                         target_audience="Creators / Founders",
                         boost_keywords=["gap", "signal", "opportunity", "market"],
-                        suppress_keywords=["teeth", "dentist", "physics", "mit", "equations"]
+                        suppress_keywords=["teeth", "dentist", "physics", "mit", "equations"],
+                        domain_id="business"
                     ),
                     HyperbolicIntent(
                         sub_culture="Orthodontic Space Analysis",
                         vibe="Medical & Clinical",
                         target_audience="Dentists / Students",
                         boost_keywords=["teeth", "crowding", "dentistry", "bolton", "arch"],
-                        suppress_keywords=["market", "business", "saas", "creator"]
+                        suppress_keywords=["market", "business", "saas", "creator"],
+                        domain_id="science"
                     ),
                     HyperbolicIntent(
                         sub_culture="Physics State Space",
                         vibe="Academic & Theoretical",
                         target_audience="Physicists / Students",
                         boost_keywords=["equations", "differential", "control theory", "mit"],
-                        suppress_keywords=["teeth", "market", "business", "dentist"]
+                        suppress_keywords=["teeth", "market", "business", "dentist"],
+                        domain_id="science"
                     )
                 ]
             )
@@ -277,7 +281,8 @@ class BedrockAgent:
                     vibe="Intellectual & Deep",
                     target_audience="Researchers / Students",
                     boost_keywords=["lecture", "mit", "professor", "course", "math"],
-                    suppress_keywords=["tiktok", "reels", "baby", "viral"]
+                    suppress_keywords=["tiktok", "reels", "baby", "viral"],
+                    domain_id="science"
                 )
 
         # 2. Logic for "Coffee"
@@ -296,7 +301,8 @@ class BedrockAgent:
                     vibe="Practical & Quick",
                     target_audience="Busy People",
                     boost_keywords=["quick", "hack", "cold brew", "5 min"],
-                    suppress_keywords=["science", "weighing"]
+                    suppress_keywords=["science", "weighing"],
+                    domain_id="food"
                 )
              
         # 3. REALITY MODE (For everything else)
@@ -306,7 +312,8 @@ class BedrockAgent:
                 vibe="Skill & Mastery",
                 target_audience="Pro Gamers",
                 boost_keywords=["speedrun", "meta", "guide", "pro"],
-                suppress_keywords=["casual", "mobile", "trailer"]
+                suppress_keywords=["casual", "mobile", "trailer"],
+                domain_id="gaming"
             )
         
         if "cooking" in query_lower or "food" in query_lower:
@@ -315,7 +322,8 @@ class BedrockAgent:
                 vibe="Delicious & Aesthetic",
                 target_audience="Foodies",
                 boost_keywords=["recipe", "gourmet", "street food", "4k"],
-                suppress_keywords=["fast food", "mukbang", "review"]
+                suppress_keywords=["fast food", "mukbang", "review"],
+                domain_id="food"
             )
 
         if "tech" in query_lower or "review" in query_lower:
@@ -324,7 +332,8 @@ class BedrockAgent:
                 vibe="In-Depth & Critical",
                 target_audience="Early Adopters",
                 boost_keywords=["specs", "benchmark", "comparison", "teardown"],
-                suppress_keywords=["rumor", "leak", "reaction"]
+                suppress_keywords=["rumor", "leak", "reaction"],
+                domain_id="science"
             )
 
         # 3. REALITY MODE (Dynamic Fallback)
@@ -335,7 +344,8 @@ class BedrockAgent:
             vibe="Signal-to-Noise Optimized",
             target_audience=f"{topic_title} Enthusiasts",
             boost_keywords=query_lower.split(), # Boost words in the query
-            suppress_keywords=["reaction", "prank", "giveaway", "shoutout"] # Always suppress trash
+            suppress_keywords=["reaction", "prank", "giveaway", "shoutout"], # Always suppress trash
+            domain_id="science" # Fallback
         )
 
     async def map_interests(self, broad_interests: List[str]) -> List[SubCulture]:
@@ -515,6 +525,41 @@ class BedrockAgent:
             print(f"❌ Script Gen Failure: {e}")
             return f"Error generating script: {e}"
 
+    async def generate_content_planner(self, niche: str, platforms: List[str], days: int, tone: str) -> str:
+        """
+        Generates a multi-platform content calendar.
+        """
+        if settings.DEMO_MODE:
+            return f"**[MOCK PLANNER]**\n\n**Niche:** {niche}\n**Platforms:** {', '.join(platforms)}\n**Duration:** {days} days\n**Tone:** {tone}\n\n*Day 1: ...*"
+
+        platforms_str = ", ".join(platforms) if platforms else "General"
+        
+        prompt = f"""
+        Act as a Master Content Strategist. Create a detailed {days}-day content calendar for the niche: "{niche}".
+        The content must be written in a "{tone}" tone.
+        
+        You must generate content for EXACTLY these platforms: {platforms_str}
+        
+        Rules:
+        - Provide a day-by-day breakdown (Day 1, Day 2, ..., Day {days}).
+        - For EVERY DAY, you MUST provide a separate category/section for EACH of the selected platforms ({platforms_str}).
+        - Under each platform, provide a highly specific content idea and a brief description of the execution.
+        - NEVER output markdown tables. Use headers, bold text, and bullet points.
+        
+        Return JSON ONLY:
+        {{
+            "content": "# Content Calendar\\n\\n## Day 1\\n**[Platform 1]**\\n- Idea...\\n**[Platform 2]**\\n- Idea...\\n\\n## Day 2..."
+        }}
+        """
+        try:
+            res = await self._invoke_bedrock(prompt)
+            if isinstance(res, dict):
+                return res.get("content") or res.get("script") or str(res)
+            return str(res)
+        except Exception as e:
+            print(f"❌ Planner Gen Failure: {e}")
+            return f"Error generating planner: {e}"
+
     async def summarize_video(self, transcript: str) -> dict:
         """
         Summarizes a transcript into Key Takeaways and a Shorts Script.
@@ -542,27 +587,35 @@ class BedrockAgent:
 
     async def repurpose_content(self, transcript: str, format_type: str) -> str:
         """
-        Repurposes a video transcript into a Blog Post, Twitter Thread, or LinkedIn Post.
+        Repurposes a video transcript into a Blog Post, Twitter Thread, LinkedIn Post, or Reel Script.
         """
         if settings.DEMO_MODE:
              return f"**[MOCK {format_type.upper()}]**\n\nBased on transcript...\n\n---\n*🔒 This is a demo response. Add your AWS Bedrock keys to `.env` for real AI-generated content.*"
 
-        prompt = f"""
-        Repurpose the following video transcript into a highly engaging {format_type}.
-        Use appropriate formatting (e.g. threads for Twitter, headers for Blog).
+        format_prompts = {
+            "twitter": "a highly engaging 5-7 tweet Twitter Thread. Use hooks, high-signal bullet points, and an actionable conclusion. Number the tweets like 1/7, 2/7. Do not use hashtags.",
+            "linkedin": "a viral LinkedIn Post. Format with a story-driven hook, short punchy sentences, lots of whitespace, emojis for bullet points, and a strong professional CTA. Keep it under 200 words.",
+            "hashnode": "a Hashnode technical blog post in Markdown format. Include an engaging H1 title, H2s, H3s, code snippets if relevant, actionable technical insights, and a clear intro/conclusion.",
+            "reels": "a high-retention 60-second Instagram Reel / YouTube Shorts script. Focus purely on the most engaging or semantically dense 1-minute window of the content. **For every spoken line, you MUST provide a vivid [VISUAL:] and [AUDIO/SFX:] recommendation.** Format exactly like a professional script."
+        }
         
-        IMPORTANT: Use only plain text and basic markdown (headers, lists). DO NOT USE TABLES.
+        target_format = format_prompts.get(format_type.lower(), "a highly engaging post.")
+
+        prompt = f"""
+        Repurpose the following video transcript into {target_format}
+        
+        IMPORTANT: Extract the HIGHEST DENSITY signal. Delete all intro fluff, sponsor reads, and irrelevant chatter. 
+        Use only plain text and basic markdown. DO NOT USE TABLES. Do NOT wrap your response in JSON; just output the raw repurposed text.
 
         Transcript: {transcript[:15000]}...
-        
-        Return JSON:
-        {{
-            "content": "The full formatted content..."
-        }}
         """
         try:
             res = await self._invoke_bedrock(prompt)
-            return res.get("content", "Error repurposing content.")
+            # Depending on how the AI answered, we might have 'content', 'script', or it might just be a string.
+            if isinstance(res, dict):
+                content = res.get("content") or res.get("script") or str(res)
+                return str(content)
+            return str(res)
         except Exception as e:
             return f"Error repurposing content: {e}"
 
@@ -681,3 +734,45 @@ Return JSON only:
             result = unseen + seen
 
         return result[:6]
+    async def generate_community_vision(self, community_name: str, quiz_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generates a bespoke 'Blueprint' for a specific community/niche.
+        Used when a creator explores their Personal Peak.
+        """
+        prompt = f"""
+        Act as a Hyperbolic Community Strategist. You are designing a 'Blue Ocean Niche Blueprint' for a creator's specific growth tier.
+        
+        Tier Title/Community: "{community_name}"
+        
+        Creator Context:
+        Audience: {quiz_context.get('audience')}
+        Goal: {quiz_context.get('goal')}
+        Style: {quiz_context.get('style')}
+        Tools: {quiz_context.get('tools')}
+        Language: {quiz_context.get('languages')}
+        
+        This "{community_name}" represents one level of their creative ascent. 
+        Describe it as a specific, thriving sub-culture or community angle they should own.
+        
+        Return a JSON object:
+        1. "vision": A 2-sentence 'Elevator Pitch' for why this specific tier/niche is a high-signal blue ocean.
+        2. "roadmap": 3 bullet points for a '90-day growth roadmap' specifically for reaching/mastering this tier.
+        3. "vibe": A description of the 'Aesthetic/Vibe' and 'Content Depth' required for this community.
+        """
+        
+        if settings.DEMO_MODE:
+            return {
+                "vision": f"{community_name} is a high-signal sub-culture where your {quiz_context.get('style')} approach perfectly resonates with {quiz_context.get('audience')}. This tier represents a critical milestone in establishing your unique 'Blue Ocean' presence.",
+                "roadmap": [
+                    f"Optimize {community_name} content for maximum retention",
+                    f"Build a tribe of {quiz_context.get('audience')} around this specific niche",
+                    f"Scale production using {quiz_context.get('tools')} and unique storytelling"
+                ],
+                "vibe": f"Premium, {community_name}-centric, and deeply immersive for {quiz_context.get('audience')}."
+            }
+
+        try:
+            return await self._invoke_bedrock(prompt)
+        except Exception as e:
+            print(f"Vision generation failed: {e}")
+            return {"vision": "Failed to generate vision.", "roadmap": ["Try again later"], "vibe": "Neutral"}

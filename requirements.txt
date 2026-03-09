@@ -8,3 +8,8 @@ textstat
 yt-dlp
 python-multipart
 mangum
+opensearch-py
+httplib2
+google-api-python-client
+youtube-transcript-api
+aiohttp

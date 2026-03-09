@@ -7,6 +7,8 @@ Until then, rich mock data is returned that mirrors the exact real-API schema.
 from typing import List, Optional, Dict, Any
 import random
 import math
+import asyncio
+import time
 
 from app.services.opportunity_engine import OpportunityEngine
 
@@ -108,6 +110,29 @@ class CreatorAnalyticsService:
             "heatmap": self._generate_heatmap()
         }
 
+    async def get_overview_stats(self, channel_id: Optional[str] = None,
+                                 niche: Optional[str] = None,
+                                 interests: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Consolidated endpoint to return growth, community, and opportunity data in one pass.
+        Prevents multiple concurrent calls from the frontend dashboard.
+        """
+        # Run these in parallel for efficiency
+        growth_task = self.get_growth_stats(channel_id)
+        community_task = self.get_community_signals(channel_id)
+        
+        growth, community = await asyncio.gather(growth_task, community_task)
+        
+        # Opportunities depends on interests
+        opportunities = await self.get_opportunities(niche=niche, interests=interests, community_signals=community)
+        
+        return {
+            "growth": growth,
+            "community": community,
+            "opportunities": opportunities,
+            "timestamp": time.time()
+        }
+
     def _generate_heatmap(self) -> List[float]:
         """Returns 30 days of interaction intensity values [0.0-1.0]."""
         # Seeded for consistency, simulates real interaction patterns
@@ -128,30 +153,22 @@ class CreatorAnalyticsService:
         MOCK: Returns realistic opportunities.
         """
         if not self.demo_mode and self.bedrock:
-            prompt = f"""
+            # DISABLED for performance: Bedrock generation takes 5-10s parsing. 
+            # Using local OpportunityEngine math instead.
+            """
+            prompt = f\"\"\"
             A creator is in the niche: {niche or 'general content creation'}.
             Their top community signals indicate: {community_signals}.
             
-            Generate 3 highly specific content opportunities. For each:
-            - title: The exact video title they should create
-            - score: Predicted engagement score (0-100) using: (demand_signal_strength × 0.6) + (audience_fit × 0.4)
-            - why: 1-2 sentence rationale
-            - tag: One of ["Blue Ocean", "High Intent", "Trend Rider", "Loyalty Builder"]
-            
-            Return JSON: {{"opportunities": [...]}}
-            """
+            Generate 3 highly specific content opportunities...
+            \"\"\"
             try:
                 result = await self.bedrock._invoke_bedrock(prompt)
-                opps = result.get("opportunities", [])
-                if opps:
-                    engine = OpportunityEngine()
-                    return {
-                        "opportunities": opps, 
-                        "supply_demand": engine.get_supply_demand_visual_data(),
-                        "score_method": "Live Opportunity scoring using AWS Bedrock."
-                    }
+                # ...
             except Exception as e:
-                print(f"Opportunity scoring failed, using mock: {e}")
+                pass
+            """
+            pass
 
         # Step 5 & 6: Match opportunities using the new Opportunity Engine Pipeline
         engine = OpportunityEngine()

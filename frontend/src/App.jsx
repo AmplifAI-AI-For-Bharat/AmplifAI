@@ -5,7 +5,7 @@ import HyperbolicSpace from './components/HyperbolicSpace';
 import CreatorAssessment from './components/CreatorAssessment';
 import CreatorTools from './components/CreatorTools';
 import InterestPicker from './components/InterestPicker';
-import ExploreTerrain from './components/ExploreTerrain';
+import ExploreTerrain, { STATIC_MAP } from './components/ExploreTerrain';
 
 const APP_NAME = 'AmplifAI';
 
@@ -37,15 +37,22 @@ function App() {
   const [showInterestPicker, setShowInterestPicker] = useState(false);
   const [showExplore, setShowExplore] = useState(false);
   const [atlasMappingResult, setAtlasMappingResult] = useState(null);
+  const [mapTarget, setMapTarget] = useState(null);
   const [watchHistory, setWatchHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem('amplifai_watch_history') || '[]'); } catch { return []; }
   });
+  const [personalizedMountain, setPersonalizedMountain] = useState(null);
+  const [communityVision, setCommunityVision] = useState(null);
 
   useEffect(() => {
     const savedContext = localStorage.getItem('amplifai_user_context');
     if (savedContext) {
       const parsed = JSON.parse(savedContext);
       setUserContext(parsed);
+
+      // User context is persisted, but personal peak is transient
+      // (Removed legacy persistence for personalizedMountain per user request)
+
       if (parsed.deep_interests && parsed.deep_interests.length > 0) {
         handleSearch('', { id: 'returning_user', context: parsed.interests }, parsed);
       }
@@ -61,6 +68,7 @@ function App() {
     setError(null);
     setShowStudio(false);
     setShowExplore(false);
+    setCommunityVision(null);
   };
 
   const handleSearch = async (query, persona, overrideContext = null, skipDisambiguation = false) => {
@@ -73,6 +81,7 @@ function App() {
     setSelectedPersona(persona);
     setCurrentQuery(query);
     setShowStudio(false);
+    setCommunityVision(null);
     setViewMode('feed');
 
     const activeContext = overrideContext || userContext || { user_id: persona?.id || 'default', interests: persona?.context || [] };
@@ -107,6 +116,50 @@ function App() {
       console.error(err);
       setError("Failed to connect to Hyperbolic Engine. Check backend.");
       return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShowOnMap = (domainId, topic = null) => {
+    setMapTarget({ domainId, topic });
+    setShowExplore(true);
+    setShowStudio(false);
+    setMarketInsights(null);
+    setCommunityVision(null);
+    // Note: currentFeed is kept so it might show below map if needed
+  };
+
+  const handlePersonalStepClick = async (stepName) => {
+    if (!userContext) return;
+    setLoading(true);
+    setError(null);
+    // We scroll down automatically after fetching
+    try {
+      const resp = await fetch('http://localhost:8000/creator/community-vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          community_name: stepName,
+          quiz_context: {
+            audience: userContext.audience || 'Target Audience',
+            goal: userContext.goal || 'Creative Goal',
+            style: userContext.style || 'Style/Format',
+            tools: userContext.tools || 'Primary Tools',
+            languages: userContext.languages || 'Languages'
+          }
+        })
+      });
+      if (!resp.ok) throw new Error('Failed to generate vision');
+      const data = await resp.json();
+      setCommunityVision(data);
+      // Wait for state to update, then scroll
+      setTimeout(() => {
+        window.scrollTo({ top: window.innerHeight - 100, behavior: 'smooth' });
+      }, 100);
+    } catch (err) {
+      console.error(err);
+      setError("AI was unable to generate a blueprint for this community.");
     } finally {
       setLoading(false);
     }
@@ -175,17 +228,28 @@ function App() {
           >
             {showStudio ? "Back to Discover" : "Enter Studio"}
           </button>
-          <button className="df-button-primary px-6 py-2.5 text-xs uppercase tracking-widest" onClick={() => { setShowExplore(true); setShowAssessment(true); }}>
-            Unlock Potential
+          <button className="df-button-primary px-6 py-2.5 text-xs uppercase tracking-widest" onClick={() => {
+            setPersonalizedMountain(null); // Clear previous peak on re-attempt
+            setShowExplore(true);
+            setShowAssessment(true);
+          }}>
+            Know Your Blue Ocean
           </button>
         </div>
       </nav>
 
       {/* ═══════ HERO ═══════ */}
       {!hasResults && !showStudio && !showExplore && !loading && (
-        <section className="relative pt-28 pb-24 px-6 max-w-7xl mx-auto">
+        <section className="relative pt-2 pb-24 px-6 max-w-7xl mx-auto">
+
+          {/* SEARCH AT THE TOP */}
+          <div className="max-w-3xl mx-auto text-center mb-8 animate-df-fade-in shadow-xl rounded-df bg-white/50 backdrop-blur-sm p-4 border border-devfolio-blue/10">
+            <h2 className="text-2xl mb-4 font-black tracking-tight text-devfolio-text-primary">What are you building today?</h2>
+            <SearchBar onSearch={handleSearch} />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-            <div className="lg:col-span-7 animate-df-fade-in">
+            <div className="lg:col-span-7 animate-df-fade-in delay-100">
               <h1 className="text-6xl lg:text-[5.5rem] mb-10 leading-[1.1] font-black tracking-tighter">
                 Redefining <span className="text-devfolio-blue">signal</span> <br className="hidden lg:block" /> for creators with <span className="relative inline-block">AI<span className="absolute -bottom-3 left-0 w-full h-3 bg-devfolio-green/20 rounded-full -z-10"></span></span>
               </h1>
@@ -193,9 +257,6 @@ function App() {
                 Stop guessing. Start building. AmplifAI uses hyperbolic geometry to surface high-signal content gaps and market opportunities tailored to your niche.
               </p>
               <div className="flex flex-col sm:flex-row gap-5 mb-16">
-                <button className="df-button-primary text-sm px-10 py-4 uppercase tracking-widest" onClick={() => document.getElementById('search-section')?.scrollIntoView({ behavior: 'smooth' })}>
-                  Explore Opportunities
-                </button>
                 <button className="df-button-secondary text-sm px-10 py-4 uppercase tracking-widest" onClick={() => setShowStudio(true)}>
                   Try Studio
                 </button>
@@ -215,32 +276,15 @@ function App() {
                 <img src="/src/assets/doodles/idea.png" alt="Idea" className="absolute -top-10 -right-10 w-56 h-56 object-contain animate-bounce" style={{ animationDuration: '7s' }} />
                 <img src="/src/assets/doodles/search.png" alt="Search" className="absolute -bottom-10 -left-10 w-48 h-48 object-contain animate-bounce" style={{ animationDuration: '9s', animationDelay: '1.5s' }} />
                 <img src="/src/assets/doodles/tools.png" alt="Tools" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 object-contain animate-pulse" />
-
-                {/* Repositioned Swipe Down Hint - Beside Yellow Pencil (tools.png) */}
-                <div className="absolute top-1/2 -right-32 -translate-y-1/2 hidden xl:flex flex-col items-center gap-2 animate-bounce">
-                  <div className="px-4 py-2 bg-devfolio-yellow/10 border-2 border-devfolio-yellow/20 rounded-full text-devfolio-yellow text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-devfolio-yellow animate-pulse"></span>
-                    Scroll down to search
-                  </div>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-devfolio-yellow/40">
-                    <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
-                  </svg>
-                </div>
-
               </div>
             </div>
-          </div>
-
-          <div id="search-section" className="mt-40 max-w-3xl mx-auto text-center px-6">
-            <h2 className="text-4xl mb-6 font-black tracking-tight">What are you building today?</h2>
-            <SearchBar onSearch={handleSearch} />
           </div>
         </section>
       )}
 
       {/* ═══════ MAIN CONTENT ═══════ */}
       <div className="max-w-7xl mx-auto px-6 pb-32">
-        {hasResults && !showStudio && (
+        {hasResults && !showStudio && !showExplore && (
           <div className="pt-12 pb-16 flex justify-center">
             <div className="w-full max-w-2xl">
               <SearchBar onSearch={handleSearch} />
@@ -261,14 +305,25 @@ function App() {
                 watchHistory={watchHistory}
                 atlasMappingResult={atlasMappingResult}
                 onClearMapping={() => setAtlasMappingResult(null)}
+                mapTarget={mapTarget}
+                onClearTarget={() => setMapTarget(null)}
                 onSearch={async (query, persona) => {
-                  await handleSearch(query, persona, null, true);
+                  const ok = await handleSearch(query, persona, null, false);
+                  if (ok) setShowExplore(false);
+                  return ok;
                 }}
+                personalizedMountain={personalizedMountain}
+                onPersonalStepClick={handlePersonalStepClick}
               />
             </div>
-            {currentFeed && viewMode === 'feed' && (
+            {(currentFeed || communityVision) && viewMode === 'feed' && (
               <div className="mt-20 pt-10 border-t-4 border-devfolio-blue/10">
-                <Feed videos={currentFeed} intent={currentIntent} />
+                <Feed
+                  videos={currentFeed}
+                  intent={currentIntent}
+                  onShowOnMap={(video) => handleShowOnMap(currentIntent?.domain_id, currentIntent?.sub_culture)}
+                  communityVision={communityVision}
+                />
               </div>
             )}
           </div>
@@ -280,8 +335,30 @@ function App() {
               setShowAssessment(false);
               // if they close manually without completing, we could optionally revert showExplore if no result
             }}
-            onComplete={(placement, domainId, coordinates) => {
+            onComplete={(placement, domainId, coordinates, personalizedName, mountainSteps, quizAnswers) => {
+              // Ensure we use the hardcoded steps for the Personal Peak based on quiz results
+              const primaryInterest = quizAnswers.interests?.[0] || 'Business';
+              const hardcodedSteps = STATIC_MAP[primaryInterest] || STATIC_MAP['Business'];
+
+              const peakData = {
+                name: personalizedName,
+                steps: hardcodedSteps,
+                domainId: domainId // Base domain reference
+              };
               setAtlasMappingResult({ placement, domainId, coordinates });
+              setPersonalizedMountain(peakData);
+              // [REMOVED] localStorage.setItem('amplifai_personalized_peak', JSON.stringify(peakData)); 
+              // Peak is now transient per session
+
+              // Store quiz answers in context for better AI blueprints
+              const updatedContext = {
+                ...userContext,
+                ...quizAnswers,
+                quiz: quizAnswers
+              };
+              setUserContext(updatedContext);
+              localStorage.setItem('amplifai_user_context', JSON.stringify(updatedContext));
+
               setShowExplore(true); // already true, but explicit
               setShowStudio(false);
               setCurrentFeed(null);
@@ -341,15 +418,20 @@ function App() {
           </div>
         )}
 
-        {!showStudio && !loading && !error && currentFeed && viewMode === 'feed' && (
+        {!showStudio && !loading && !error && (currentFeed || communityVision) && viewMode === 'feed' && (
           <div className="animate-df-fade-in">
-            <Feed videos={currentFeed} intent={currentIntent} />
+            <Feed
+              videos={currentFeed || []}
+              intent={currentIntent}
+              onShowOnMap={(video) => handleShowOnMap(currentIntent?.domain_id, currentIntent?.sub_culture)}
+              communityVision={communityVision}
+            />
           </div>
         )}
 
         {!showStudio && !loading && !error && currentFeed && viewMode === '3d' && (
           <div className="animate-df-fade-in">
-            <div className="df-card overflow-hidden">
+            <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-2xl h-[800px]">
               <HyperbolicSpace data={currentFeed} mode="videos" />
             </div>
           </div>

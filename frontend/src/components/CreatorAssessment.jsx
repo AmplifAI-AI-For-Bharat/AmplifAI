@@ -108,7 +108,7 @@ const CreatorAssessment = ({ onComplete, onClose }) => {
             // Wait a tiny bit extra for the UI polish "Locating your space..." effect
             await new Promise(r => setTimeout(r, 1500));
 
-            onComplete(data.placement_string, data.domain_id, data.coordinates);
+            onComplete(data.placement_string, data.domain_id, data.coordinates, data.personalized_name, data.mountain_steps, payload);
             onClose();
         } catch (e) {
             console.error(e);
@@ -145,7 +145,7 @@ const CreatorAssessment = ({ onComplete, onClose }) => {
                         ))}
                     </div>
 
-                    <div className="bg-white/60 p-6 sm:p-10 rounded-[3.5rem] border-2 border-white/50 shadow-2xl backdrop-blur-3xl relative overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+                    <div className="bg-white/60 p-6 sm:p-8 rounded-[3.5rem] border-2 border-white/50 shadow-2xl backdrop-blur-3xl relative overflow-y-auto" style={{ maxHeight: 'calc(100vh - 100px)' }}>
 
                         {/* Step 1: Interests (Images) */}
                         {step === 1 && (
@@ -157,7 +157,7 @@ const CreatorAssessment = ({ onComplete, onClose }) => {
                                         const sel = answers.interests.includes(i.id);
                                         return (
                                             <button key={i.id} onClick={() => toggleArray('interests', i.id, 3)}
-                                                className={`relative h-40 rounded-[2rem] overflow-hidden group transition-all duration-300 transform ${sel ? 'scale-95 ring-[4px] ring-black shadow-lg' : 'hover:-translate-y-1 hover:shadow-2xl'}`}>
+                                                className={`relative h-28 sm:h-32 rounded-[1.5rem] overflow-hidden group transition-all duration-300 transform ${sel ? 'scale-95 ring-[4px] ring-black shadow-lg' : 'hover:-translate-y-1 hover:shadow-2xl'}`}>
                                                 <img src={i.img} alt={i.label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                                 <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity ${sel ? 'opacity-80' : 'group-hover:opacity-100'}`} />
                                                 <div className="absolute inset-x-0 bottom-0 p-5 flex items-end">

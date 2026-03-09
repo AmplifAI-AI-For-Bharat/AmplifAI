@@ -42,32 +42,32 @@ class ExploreTerrainErrorBoundary extends Component {
 // DOMAIN DATA  —  each has base→mid→peak gradient colors
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DOMAINS = [
-    { id: 'music', label: 'Music', icon: '🎵', x: -40, z: 0, colors: ['#0284C7', '#38BDF8', '#BAE6FD'] },
-    { id: 'fashion', label: 'Fashion', icon: '👗', x: -32, z: -15, colors: ['#EA580C', '#F97316', '#FDBA74'] },
-    { id: 'science', label: 'Science & Tech', icon: '🔬', x: -24, z: 5, colors: ['#059669', '#34D399', '#A7F3D0'] },
-    { id: 'cinema', label: 'Cinema & Media', icon: '🎬', x: -16, z: -10, colors: ['#7C3AED', '#A855F7', '#D8B4FE'] },
-    { id: 'art', label: 'Art', icon: '🎨', x: -8, z: 10, colors: ['#DC2626', '#EF4444', '#FCA5A5'] },
-    { id: 'business', label: 'Business', icon: '📈', x: 0, z: -5, colors: ['#0F766E', '#14B8A6', '#5EEAD4'] },
-    { id: 'food', label: 'Food & Cuisine', icon: '🍔', x: 8, z: 5, colors: ['#E11D48', '#F43F5E', '#FDA4AF'] },
-    { id: 'travel', label: 'Travel', icon: '✈️', x: 16, z: -15, colors: ['#0284C7', '#0EA5E9', '#7DD3FC'] },
-    { id: 'gaming', label: 'Gaming', icon: '🎮', x: 24, z: 0, colors: ['#4F46E5', '#6366F1', '#A5B4FC'] },
-    { id: 'education', label: 'Education', icon: '📚', x: 32, z: -20, colors: ['#16A34A', '#22C55E', '#86EFAC'] },
-    { id: 'comedy', label: 'Comedy', icon: '😂', x: 40, z: 10, colors: ['#D97706', '#F59E0B', '#FCD34D'] },
+export const DOMAINS = [
+    { id: 'Music', label: 'Music', icon: '🎵', x: -40, z: 0, colors: ['#0284C7', '#38BDF8', '#BAE6FD'] },
+    { id: 'Fashion', label: 'Fashion', icon: '👗', x: -32, z: -15, colors: ['#EA580C', '#F97316', '#FDBA74'] },
+    { id: 'Science & Tech', label: 'Science & Tech', icon: '🔬', x: -24, z: 5, colors: ['#059669', '#34D399', '#A7F3D0'] },
+    { id: 'Cinema & Media', label: 'Cinema & Media', icon: '🎬', x: -16, z: -10, colors: ['#7C3AED', '#A855F7', '#D8B4FE'] },
+    { id: 'Art', label: 'Art', icon: '🎨', x: -8, z: 10, colors: ['#DC2626', '#EF4444', '#FCA5A5'] },
+    { id: 'Business', label: 'Business', icon: '📈', x: 0, z: -5, colors: ['#0F766E', '#14B8A6', '#5EEAD4'] },
+    { id: 'Food', label: 'Food & Cuisine', icon: '🍔', x: 8, z: 5, colors: ['#E11D48', '#F43F5E', '#FDA4AF'] },
+    { id: 'Travel', label: 'Travel', icon: '✈️', x: 16, z: -15, colors: ['#0284C7', '#0EA5E9', '#7DD3FC'] },
+    { id: 'Gaming', label: 'Gaming', icon: '🎮', x: 24, z: 0, colors: ['#4F46E5', '#6366F1', '#A5B4FC'] },
+    { id: 'Education', label: 'Education', icon: '📚', x: 32, z: -20, colors: ['#16A34A', '#22C55E', '#86EFAC'] },
+    { id: 'Comedy', label: 'Comedy', icon: '😂', x: 40, z: 10, colors: ['#D97706', '#F59E0B', '#FCD34D'] },
 ];
 
-const STATIC_MAP = {
-    music: ['Electronic Music', 'Folk & Acoustic', 'Jazz & Blues', 'Metal & Noise', 'Classical Composition'],
-    fashion: ['History of Fashion', 'Streetwear Culture', 'Sustainable Fashion', 'Avant-Garde Design', 'Vintage Revival'],
-    science: ['AI & Machine Learning', 'Space Exploration', 'Biotechnology', 'Quantum Computing', 'Neuroscience'],
-    cinema: ['World Cinema', 'Animation Techniques', 'Documentary Filmmaking', 'Screenwriting', 'Cinematography'],
-    art: ['Contemporary Art', 'Street Art', 'Digital Art', 'Photography', 'Sculpture'],
-    business: ['Startups', 'Content Marketing', 'Leadership & Strategy', 'Finance', 'Product Management'],
-    food: ['Gastronomic Arts', 'Culinary Science', 'Fine Dining Innovations', 'Sustainable Agriculture', 'Global Flavor Profiles'],
-    travel: ['Cultural Expeditions', 'Eco-Tourism', 'Geographical Documentaries', 'Historical Demographics', 'Architecture Tours'],
-    gaming: ['Game Design Theory', 'Interactive Storytelling', 'Esports Economics', 'Player Psychology', 'Procedural Generation'],
-    education: ['Academic Discourse', 'Pedagogical Methodologies', 'Scientific Literacy', 'Cognitive Sciences', 'Historical Analysis'],
-    comedy: ['Satirical Analysis', 'Comedic Writing Theory', 'Improvisational Arts', 'Societal Commentary', 'Stand-up Structuring'],
+export const STATIC_MAP = {
+    'Music': ['Audio Architect', 'Soundscape Master', 'Beat Blueprint Specialist', 'Vocal Virtuoso', 'Sonic Storyteller'],
+    'Fashion': ['Streetwear Culture', 'Sustainable Fashion', 'Avant-Garde Design', 'Vintage Revival', 'Couture Visionary'],
+    'Science & Tech': ['AI & Machine Learning', 'Space Exploration', 'Biotechnology', 'Quantum Computing', 'Neuroscience'],
+    'Cinema & Media': ['World Cinema', 'Animation Techniques', 'Documentary Filmmaking', 'Screenwriting', 'Cinematography'],
+    'Art': ['Contemporary Art', 'Street Art', 'Digital Art', 'Photography', 'Sculpture'],
+    'Business': ['Startups', 'Content Marketing', 'Leadership & Strategy', 'Finance', 'Product Management'],
+    'Food': ['Gastronomic Arts', 'Culinary Science', 'Fine Dining Innovations', 'Sustainable Agriculture', 'Global Flavor Profiles'],
+    'Travel': ['Cultural Expeditions', 'Eco-Tourism', 'Geographical Documentaries', 'Historical Demographics', 'Architecture Tours'],
+    'Gaming': ['Game Design Theory', 'Interactive Storytelling', 'Esports Economics', 'Player Psychology', 'Procedural Generation'],
+    'Education': ['Academic Discourse', 'Pedagogical Methodologies', 'Scientific Literacy', 'Cognitive Sciences', 'Historical Analysis'],
+    'Comedy': ['Satirical Analysis', 'Comedic Writing Theory', 'Improvisational Arts', 'Societal Commentary', 'Stand-up Structuring'],
 };
 
 const LEAF_MAP = {
@@ -160,7 +160,7 @@ function ContourRing({ y, domain, highlighted, label, onClick }) {
 
             {/* Label beside ring (shown when in zoomed mode) */}
             {label && (
-                <Html position={[ringR + 0.6, 0.1, 0]} center distanceFactor={15}>
+                <Html position={[ringR + 0.6, 0.1, 0]} center transform distanceFactor={12} zIndexRange={[100, 0]}>
                     <div
                         onClick={() => onClick && onClick()}
                         style={{
@@ -187,7 +187,7 @@ function ContourRing({ y, domain, highlighted, label, onClick }) {
 // MOUNTAIN
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Mountain({ domain, isSelected, tierLabels = [], highlightedTier, onDomainClick, onRingClick, zoomed }) {
+function Mountain({ domain, isSelected, isMapped, tierLabels = [], highlightedTier, onDomainClick, onRingClick, zoomed }) {
     const groupRef = useRef();
     const texRef = useRef();
 
@@ -217,6 +217,9 @@ function Mountain({ domain, isSelected, tierLabels = [], highlightedTier, onDoma
                 />
             </mesh>
 
+            {/* Personalized Beacon (Landmark) */}
+            {isMapped && <Beacon color={domain.colors[2]} />}
+
             {/* Summit glow sphere */}
             <mesh position={[0, MOUNTAIN_HEIGHT + 0.18, 0]}>
                 <sphereGeometry args={[0.28, 20, 20]} />
@@ -230,8 +233,8 @@ function Mountain({ domain, isSelected, tierLabels = [], highlightedTier, onDoma
                     y={rh}
                     domain={domain}
                     highlighted={isSelected && (highlightedTier === i || highlightedTier == null)}
-                    label={zoomed ? (tierLabels[i] || null) : null}
-                    onClick={zoomed ? () => onRingClick(i) : null}
+                    label={isSelected ? (tierLabels[i] || null) : null}
+                    onClick={isSelected ? () => onRingClick(i) : null}
                 />
             ))}
 
@@ -245,13 +248,33 @@ function Mountain({ domain, isSelected, tierLabels = [], highlightedTier, onDoma
                         borderRadius: '50%',
                         width: 44, height: 44,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22,
-                        boxShadow: isSelected ? `0 4px 20px ${domain.colors[1]}80` : '0 2px 10px rgba(0,0,0,0.12)',
-                        cursor: 'pointer', transition: 'all 0.22s',
+                        boxShadow: domain.isPersonalized ? `0 0 20px ${domain.colors[1]}` : '0 8px 32px rgba(0,0,0,0.15)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        transform: `scale(${zoomed ? 1.2 : 1})`,
+                        animation: domain.isPersonalized ? 'bounce 2.5s infinite ease-in-out' : 'none',
                         userSelect: 'none', pointerEvents: 'all',
                     }}
                 >
-                    {domain.icon}
+                    <span style={{ fontSize: zoomed ? 24 : 20 }}>{domain.icon}</span>
+                    {domain.isPersonalized && !zoomed && (
+                        <div style={{
+                            position: 'absolute',
+                            bottom: -15,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'black',
+                            color: 'white',
+                            fontSize: '6px',
+                            fontWeight: '900',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            pointerEvents: 'none'
+                        }}>Personal Peak</div>
+                    )}
                 </div>
             </Html>
 
@@ -287,7 +310,7 @@ function AnimatedOcean() {
     const geoRef = useRef();
 
     const geometry = useMemo(() => {
-        const g = new THREE.PlaneGeometry(110, 40, 60, 20);
+        const g = new THREE.PlaneGeometry(110, 65, 60, 25);
         g.rotateX(-Math.PI / 2);
         return g;
     }, []);
@@ -377,6 +400,28 @@ function OceanFoam() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BEACON / LANDMARK
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Beacon({ color }) {
+    return (
+        <group position={[0, MOUNTAIN_HEIGHT, 0]}>
+            {/* Light beam */}
+            <mesh position={[0, 2, 0]}>
+                <cylinderGeometry args={[0.03, 0.03, 4, 8]} />
+                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} transparent opacity={0.6} />
+            </mesh>
+            {/* Top glow orb */}
+            <mesh position={[0, 4, 0]}>
+                <sphereGeometry args={[0.35, 16, 16]} />
+                <meshStandardMaterial color={color} emissive={color} emissiveIntensity={8} />
+            </mesh>
+            <pointLight position={[0, 4, 0]} color={color} intensity={3} distance={12} />
+        </group>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CAMERA RIG
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -431,7 +476,7 @@ const tierCam = (d, ringY) => ({ x: d.x, y: ringY + 4.5, z: (d.z || 0) + 18, lx:
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult = null, onClearMapping }) {
+function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult = null, mapTarget = null, onClearTarget, onClearMapping, personalizedMountain = null, onPersonalStepClick = null }) {
     const [selectedDomain, setSelectedDomain] = useState(null);
     const [selectedTier, setSelectedTier] = useState(null);
     const [tierTopics, setTierTopics] = useState([]);
@@ -440,6 +485,22 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
     const [searchError, setSearchError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [cam, setCam] = useState(ROOT_CAM);
+
+    const effectiveDomains = useMemo(() => {
+        let base = [...DOMAINS];
+        if (personalizedMountain) {
+            base.push({
+                id: 'personalized',
+                label: personalizedMountain.name || 'Your Personal Peak',
+                icon: '✨',
+                x: 0,
+                z: 22,
+                colors: ['#0C4A6E', '#0EA5E9', '#F0F9FF'], // Special Ice/Crystal vibe
+                isPersonalized: true
+            });
+        }
+        return base;
+    }, [personalizedMountain]);
 
     // ── Fetch niches ────────────────────────────────────────────────────────────
 
@@ -471,20 +532,45 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
         setSelectedTier(null);
         setLeafTopics([]);
         setCam(zoomedCam(domain));
-        const topics = await fetchNiches(domain.id, domain.label);
-        setTierTopics(topics.slice(0, 5));
-    }, [selectedDomain, fetchNiches]);
+
+        if (domain.isPersonalized && personalizedMountain) {
+            setTierTopics(personalizedMountain.steps || []);
+        } else {
+            // Set initial labels from static map instantly so they don't wait for network
+            const initialTopics = STATIC_MAP[domain.id] || [];
+            setTierTopics(initialTopics.slice(0, 5));
+
+            // Then fetch live ones if possible
+            fetchNiches(domain.id, domain.label).then(topics => {
+                if (topics && topics.length > 0) setTierTopics(topics.slice(0, 5));
+            });
+        }
+    }, [selectedDomain, fetchNiches, personalizedMountain]);
 
     // ── Pre-select domain from Atlas Mapping ─────────────────────────────────────
     useEffect(() => {
         if (atlasMappingResult && !selectedDomain) {
-            const domain = DOMAINS.find(d => d.id === atlasMappingResult.domainId);
+            const domainIdToFind = personalizedMountain ? 'personalized' : atlasMappingResult.domainId;
+            const domain = effectiveDomains.find(d => d.id === domainIdToFind);
             if (domain) {
                 // adding a small delay so the canvas can render before flying the camera
                 setTimeout(() => handleDomainClick(domain), 600);
             }
         }
-    }, [atlasMappingResult, handleDomainClick, selectedDomain]);
+    }, [atlasMappingResult, handleDomainClick, selectedDomain, effectiveDomains, personalizedMountain]);
+
+    // ── Pre-select domain from Search (Map Target) ───────────────────────────────
+    useEffect(() => {
+        if (mapTarget && mapTarget.domainId) {
+            const domain = DOMAINS.find(d => d.id === mapTarget.domainId);
+            if (domain) {
+                setTimeout(() => {
+                    handleDomainClick(domain);
+                    if (onClearTarget) onClearTarget();
+                }, 100);
+            }
+        }
+    }, [mapTarget, handleDomainClick, onClearTarget]);
 
     // ── Ring / tier click ────────────────────────────────────────────────────────
 
@@ -495,9 +581,15 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
         setSelectedTier(tier);
         setSearchError(null);
         setCam(tierCam(selectedDomain, RING_HEIGHTS[tier]));
-        const leaves = await fetchNiches(selectedDomain.id, selectedDomain.label, label);
-        setLeafTopics(leaves.slice(0, 6));
-    }, [selectedDomain, tierTopics, fetchNiches]);
+
+        if (selectedDomain.isPersonalized && onPersonalStepClick) {
+            onPersonalStepClick(label);
+            setLeafTopics([]); // No leaf topics for personal peak
+        } else {
+            const leaves = await fetchNiches(selectedDomain.id, selectedDomain.label, label);
+            setLeafTopics(leaves.slice(0, 6));
+        }
+    }, [selectedDomain, tierTopics, fetchNiches, onPersonalStepClick]);
 
     // ── Leaf click — stays in explore on failure ─────────────────────────────────
 
@@ -631,29 +723,7 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
                 </div>
             )}
 
-            {/* ── ATLAS MAPPING OVERLAY ── */}
-            {atlasMappingResult && (
-                <div style={{
-                    position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
-                    zIndex: 40, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)',
-                    border: '2px solid #0891B2', borderRadius: 24, padding: '24px 32px',
-                    textAlign: 'center', boxShadow: '0 8px 32px rgba(8,145,178,0.2)',
-                    maxWidth: '90%', width: 600, fontFamily: 'Inter, sans-serif'
-                }} className="animate-df-fade-in">
-                    <p style={{
-                        fontSize: 10, fontWeight: 900, color: '#0891B2',
-                        textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 8
-                    }}>Connecting you with communities</p>
-                    <p style={{
-                        fontSize: 20, fontWeight: 800, color: '#1E3A5F',
-                        lineHeight: 1.4, margin: 0
-                    }}>"{atlasMappingResult.placement}"</p>
-                    <button onClick={onClearMapping} style={{
-                        position: 'absolute', top: 12, right: 16, background: 'none', border: 'none',
-                        fontSize: 16, cursor: 'pointer', color: '#94A3B8'
-                    }} onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>✕</button>
-                </div>
-            )}
+
 
             {/* ── LEAF TOPIC CARDS ── */}
             {selectedTier !== null && leafTopics.length > 0 && (
@@ -691,7 +761,7 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
             }}>
                 {!isZoomed && '↑ Tap a mountain or its icon to explore'}
                 {isZoomed && selectedTier === null && '↑ Tap a glowing ring to dive deeper'}
-                {selectedTier !== null && '↑ Tap a topic card to search'}
+                {selectedTier !== null && (selectedDomain?.isPersonalized ? '↑ Scroll down to see your Community Vision' : '↑ Tap a topic card to search')}
             </div>
 
             {/* ── CANVAS ── */}
@@ -708,11 +778,12 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
                 <OceanFoam />
                 <Sparkles />
 
-                {DOMAINS.map(domain => (
+                {effectiveDomains.map(domain => (
                     <Mountain
                         key={domain.id}
                         domain={domain}
                         isSelected={selectedDomain?.id === domain.id}
+                        isMapped={atlasMappingResult?.domainId === domain.id || (domain.isPersonalized && !!atlasMappingResult)}
                         tierLabels={selectedDomain?.id === domain.id ? tierTopics : []}
                         highlightedTier={selectedDomain?.id === domain.id ? selectedTier : null}
                         onDomainClick={handleDomainClick}

@@ -41,6 +41,7 @@ class HyperbolicIntent(BaseModel):
     target_audience: str
     boost_keywords: List[str]
     suppress_keywords: List[str]
+    domain_id: Optional[str] = None # Link to Atlas/Map (music, science, etc.)
     is_ambiguous: bool = False
     potential_intents: List['HyperbolicIntent'] = []
 

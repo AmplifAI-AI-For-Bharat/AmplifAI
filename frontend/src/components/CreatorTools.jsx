@@ -21,6 +21,7 @@ const CATS = [
         name: 'CREATE', tools: [
             { id: 'script', label: 'Script Writer', icon: PenLine, desc: 'AI hooks & retention mapping' },
             { id: 'planner', label: 'Content Planner', icon: CalendarDays, desc: 'Multi-platform scheduling intelligence' },
+            { id: 'forge', label: 'Content Forge', icon: Sparkles, desc: 'Repurpose YouTube URLs to any format' },
             { id: 'ab', label: 'A/B Title Lab', icon: FlaskConical, desc: 'CTR prediction & variation' },
             { id: 'predict', label: 'Engagement Insights', icon: TrendingUp, desc: 'ML-based performance predictions' },
         ]
@@ -146,6 +147,7 @@ const useAPI = (fetchFn, deps = []) => {
             const result = await fetchFn();
             setData(result);
         } catch (e) {
+            console.error("API Error:", e);
             setError(e.message);
         } finally {
             setLoading(false);
@@ -162,17 +164,18 @@ const useAPI = (fetchFn, deps = []) => {
 const DashboardView = ({ setTool, setScriptTopic }) => {
     const [activeTab, setActiveTab] = useState('opportunities');
 
-    const { data: growthData, loading: gLoading } = useAPI(() =>
-        fetch(`${API}/creator/analytics/growth`).then(r => r.json()).then(r => r.data)
-    );
-    const { data: communityData, loading: cLoading } = useAPI(() =>
-        fetch(`${API}/creator/analytics/community`).then(r => r.json()).then(r => r.data)
-    );
-    const { data: oppData, loading: oLoading } = useAPI(() =>
-        fetch(`${API}/creator/analytics/opportunities`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-        }).then(r => r.json()).then(r => r.data)
-    );
+    // Single unified fetch for all dashboard metrics
+    const { data, loading } = useAPI(() => {
+        return fetch(`${API}/creator/analytics/overview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        }).then(r => r.json()).then(r => r.data);
+    }, []);
+
+    const oppData = data?.opportunities;
+    const communityData = data?.community;
+    const growthData = data?.growth;
 
     const statDefs = [
         { key: 'total_views', label: 'Total Views', icon: Eye, color: '#3770FF' },
@@ -226,7 +229,7 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
                     </div>
 
                     {/* Opportunity Cards */}
-                    {oLoading ? (
+                    {loading ? (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{[1, 2, 3].map(i => <Skeleton key={i} className="h-64 w-full" />)}</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -246,7 +249,7 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
                         <div className="text-[10px] font-black text-devfolio-text-primary uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                             <BarChart3 size={14} className="text-devfolio-green" /> Niche Supply vs. Demand
                         </div>
-                        {oLoading ? <div className="space-y-5">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div> : (
+                        {loading ? <div className="space-y-5">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div> : (
                             <div className="space-y-4">
                                 {(oppData?.supply_demand || []).map(row => (
                                     <div key={row.topic} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-devfolio-blue/20 transition-all bg-white">
@@ -280,7 +283,7 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
                             <div className="text-[10px] font-black text-devfolio-text-primary uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                 <MessageSquare size={14} className="text-devfolio-blue" /> Audience Sentiment
                             </div>
-                            {cLoading ? <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div> : (
+                            {loading ? <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div> : (
                                 <div className="space-y-4">
                                     {[
                                         { label: 'Positive', pct: communityData?.sentiment?.positive || 0, color: 'bg-devfolio-green', emoji: '😍' },
@@ -306,7 +309,7 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
                             <div className="text-[10px] font-black text-devfolio-text-primary uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                 <Activity size={14} className="text-devfolio-yellow fill-devfolio-yellow" /> High-Signal Community Activity
                             </div>
-                            {cLoading ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div> : (
+                            {loading ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div> : (
                                 <div className="space-y-3">
                                     {(communityData?.signals || []).map((s, i) => <SignalCard key={i} {...s} />)}
                                 </div>
@@ -321,7 +324,7 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
                 <div className="space-y-6 animate-df-fade-in">
                     {/* Stats */}
                     <div className="flex flex-wrap gap-5">
-                        {stats.map(s => <StatCard key={s.key} stat={s} loading={gLoading} />)}
+                        {stats.map(s => <StatCard key={s.key} stat={s} loading={loading} />)}
                     </div>
                 </div>
             )}
@@ -345,6 +348,7 @@ const CreatorTools = () => {
     const [seoP, setSeoP] = useState({ topic: '' });
     const [dnaP, setDnaP] = useState({ example: '' });
     const [repurposeP, setRepurposeP] = useState({ transcript: '', format: 'Twitter Thread' });
+    const [forgeP, setForgeP] = useState({ url: '', format: 'Twitter' });
     const [summaryP, setSummaryP] = useState({ transcript: '' });
 
     const toolMeta = CATS.flatMap(c => c.tools).find(t => t.id === tool);
@@ -355,12 +359,13 @@ const CreatorTools = () => {
         let endpoint = '/creator/tools/script', body = {};
         switch (tool) {
             case 'script': body = scriptP; break;
-            case 'planner': body = { topic: `Create a detailed ${plannerP.days}-day content calendar for "${plannerP.niche}" on ${plannerP.platforms.join(', ')}.`, angle: `${plannerP.tone} content strategist` }; break;
+            case 'planner': endpoint = '/creator/tools/planner'; body = plannerP; break;
             case 'ab': body = { topic: `Generate ${abP.count} high-CTR title variations for: ${abP.topic}`, angle: 'data-driven title optimizer' }; break;
             case 'predict': body = { topic: 'Provide engagement insights for typical high-performing formats.', angle: 'analyst' }; break;
             case 'seo': body = { topic: `Generate a high-ranking SEO strategy for: ${seoP.topic}`, angle: 'YouTube algorithm expert' }; break;
             case 'dna': body = { topic: `Deconstruct the content format of: ${dnaP.example}`, angle: 'format analyzer' }; break;
             case 'repurpose': endpoint = '/creator/tools/repurpose'; body = repurposeP; break;
+            case 'forge': endpoint = '/creator/tools/forge'; body = forgeP; break;
             case 'summary': endpoint = '/creator/tools/summarize'; body = summaryP; break;
             case 'radar': body = { topic: 'What are the fastest rising micro-trends in my niche today?', angle: 'trend forecaster' }; break;
             case 'audience': body = { topic: 'Generate a 3-step strategy to convert casual viewers into community members.', angle: 'community builder' }; break;
@@ -398,8 +403,8 @@ const CreatorTools = () => {
                     <div><label className={lbl}>Content Niche</label><input className={inp} placeholder="e.g. Tech Reviews, Fitness Motivation" value={plannerP.niche} onChange={e => setPlannerP({ ...plannerP, niche: e.target.value })} /></div>
                     <div><label className={lbl}>Platforms</label><PillSelect options={PLATFORMS} selected={plannerP.platforms} onChange={p => setPlannerP(prev => ({ ...prev, platforms: prev.platforms.includes(p) ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p] }))} /></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className={lbl}>Timeframe</label><select className={inp} value={plannerP.days} onChange={e => setPlannerP({ ...plannerP, days: +e.target.value })}><option value={7}>7 days</option><option value={14}>14 days</option><option value={30}>30 days</option></select></div>
-                        <div><label className={lbl}>Content Tone</label><select className={inp} value={plannerP.tone} onChange={e => setPlannerP({ ...plannerP, tone: e.target.value })}><option>Professional</option><option>Casual & Raw</option><option>Deep Educational</option><option>High Energy</option></select></div>
+                        <div><label className={lbl}>Timeframe (Days)</label><input type="number" min="1" max="90" className={inp} value={plannerP.days} onChange={e => setPlannerP({ ...plannerP, days: parseInt(e.target.value) || 7 })} /></div>
+                        <div><label className={lbl}>Content Tone</label><input type="text" className={inp} placeholder="e.g. Aggressive, Educational, Funny" value={plannerP.tone} onChange={e => setPlannerP({ ...plannerP, tone: e.target.value })} /></div>
                     </div>
                 </div>
             );
@@ -426,6 +431,31 @@ const CreatorTools = () => {
                 <div className="space-y-6">
                     <div><label className={lbl}>Target Format</label><select className={inp} value={repurposeP.format} onChange={e => setRepurposeP({ ...repurposeP, format: e.target.value })}><option>Twitter Thread</option><option>LinkedIn Post</option><option>TikTok Script</option><option>Newsletter Issue</option></select></div>
                     <div><label className={lbl}>Source Transcript / Ideas</label><textarea className={`${inp} min-h-[120px] resize-none`} placeholder="Paste your video transcript here..." value={repurposeP.transcript} onChange={e => setRepurposeP({ ...repurposeP, transcript: e.target.value })} /></div>
+                </div>
+            );
+            case 'forge': return (
+                <div className="space-y-6">
+                    <div>
+                        <label className={lbl}>YouTube Video URL</label>
+                        <input className={inp} placeholder="https://www.youtube.com/watch?v=..." value={forgeP.url} onChange={e => setForgeP({ ...forgeP, url: e.target.value })} />
+                    </div>
+                    <div>
+                        <label className={lbl}>Content Format</label>
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                            {['Twitter', 'LinkedIn', 'Hashnode', 'Reels'].map(fmt => (
+                                <button
+                                    key={fmt}
+                                    onClick={() => setForgeP({ ...forgeP, format: fmt })}
+                                    className={`p-3 rounded-xl border flex items-center justify-center text-xs font-black tracking-widest uppercase transition-all ${forgeP.format === fmt
+                                        ? 'bg-devfolio-blue text-white border-devfolio-blue shadow-md'
+                                        : 'bg-white text-devfolio-text-secondary border-gray-100 hover:border-devfolio-blue/30 hover:text-devfolio-blue'
+                                        }`}
+                                >
+                                    {fmt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             );
             case 'summary': return (

@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-const VideoCard = ({ video }) => {
+const VideoCard = ({ video, onShowOnMap }) => {
     const [feedback, setFeedback] = React.useState(null);
     const [isPlaying, setIsPlaying] = React.useState(false);
     const [translating, setTranslating] = React.useState(false);
@@ -170,26 +170,32 @@ const VideoCard = ({ video }) => {
                     )}
 
                     {/* Buttons */}
-                    <div className="flex gap-3 mt-6 pt-5 border-t border-gray-50">
+                    <div className="flex flex-wrap gap-3 mt-6 pt-5 border-t border-gray-50">
                         <button
                             onClick={() => handleFeedback('relevant')}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'relevant' ? 'bg-devfolio-blue/10 border-devfolio-blue/30 text-devfolio-blue' : 'border-gray-100 bg-white hover:border-devfolio-blue/30 text-gray-400 hover:text-devfolio-blue'}`}
+                            className={`flex-1 min-w-[80px] text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'relevant' ? 'bg-devfolio-blue/10 border-devfolio-blue/30 text-devfolio-blue' : 'border-gray-100 bg-white hover:border-devfolio-blue/30 text-gray-400 hover:text-devfolio-blue'}`}
                         >Relevant</button>
                         <button
                             onClick={() => handleFeedback('not_relevant')}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'not_relevant' ? 'bg-red-50 border-red-200 text-red-600' : 'border-gray-100 bg-white hover:border-red-200 text-gray-400 hover:text-red-600'}`}
+                            className={`flex-1 min-w-[80px] text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all ${feedback === 'not_relevant' ? 'bg-red-50 border-red-200 text-red-600' : 'border-gray-100 bg-white hover:border-red-200 text-gray-400 hover:text-red-600'}`}
                         >Hide</button>
                         <button
                             onClick={handleTranslate}
                             disabled={translating}
-                            className={`flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${translating ? 'bg-devfolio-yellow/10 border-devfolio-yellow/30 text-devfolio-yellow cursor-wait' : translation ? 'bg-devfolio-green/10 border-devfolio-green/30 text-devfolio-green' : 'border-gray-100 bg-white hover:border-devfolio-yellow/30 hover:text-devfolio-yellow'}`}
+                            className={`flex-1 min-w-[80px] text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all flex items-center justify-center gap-2 ${translating ? 'bg-devfolio-yellow/10 border-devfolio-yellow/30 text-devfolio-yellow cursor-wait' : translation ? 'bg-devfolio-green/10 border-devfolio-green/30 text-devfolio-green' : 'border-gray-100 bg-white hover:border-devfolio-yellow/30 hover:text-devfolio-yellow'}`}
                         >
                             {translating ? (
                                 <>
                                     <div className="w-2 h-2 border-2 border-devfolio-yellow/30 border-t-devfolio-yellow rounded-full animate-spin" />
-                                    TRANSLATING...
+                                    ...
                                 </>
-                            ) : translation ? '✅ Translated' : 'Translate'}
+                            ) : translation ? '✅ EN' : 'Translate'}
+                        </button>
+                        <button
+                            onClick={() => onShowOnMap && onShowOnMap(video)}
+                            className="flex-1 min-w-[80px] text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-devfolio-blue/20 bg-devfolio-blue/5 text-devfolio-blue hover:bg-devfolio-blue hover:text-white transition-all flex items-center justify-center gap-2"
+                        >
+                            <span className="text-sm">📍</span> Map
                         </button>
                     </div>
                 </div>

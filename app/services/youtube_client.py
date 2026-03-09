@@ -157,6 +157,22 @@ class YouTubeClient:
             print(f"Captions missing for {video_id}, falling back to audio pipeline. ({e.__class__.__name__})")
             return None
             
+    @staticmethod
+    def extract_video_id(url: str) -> str | None:
+        """
+        Extracts the YouTube Video ID from standard and shortened URLs.
+        """
+        import re
+        patterns = [
+            r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+            r'(?:youtu\.be\/)([0-9A-Za-z_-]{11})'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
+
     def _get_mock_results(self, queries: List[str]) -> List[Dict[str, Any]]:
         return [
             {
