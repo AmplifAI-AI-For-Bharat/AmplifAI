@@ -8,6 +8,7 @@ import InterestPicker from './components/InterestPicker';
 import ExploreTerrain, { STATIC_MAP } from './components/ExploreTerrain';
 
 const APP_NAME = 'AmplifAI';
+const API_BASE_URL = 'http://localhost:8000';
 
 const SwipeDownHint = ({ text = "Swipe down to search" }) => (
   <div className="animate-bounce flex flex-col items-center gap-2 mb-6">
@@ -87,7 +88,7 @@ function App() {
     const activeContext = overrideContext || userContext || { user_id: persona?.id || 'default', interests: persona?.context || [] };
 
     try {
-      const response = await fetch('http://localhost:8000/feed', {
+      const response = await fetch(`${API_BASE_URL}/feed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,7 +137,7 @@ function App() {
     setError(null);
     // We scroll down automatically after fetching
     try {
-      const resp = await fetch('http://localhost:8000/creator/community-vision', {
+      const resp = await fetch(`${API_BASE_URL}/creator/community-vision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -184,7 +185,7 @@ function App() {
     setError(null);
     try {
       const userContext = { user_id: selectedPersona?.id || 'default', interests: selectedPersona?.context || [] };
-      const response = await fetch('http://localhost:8000/creator/insights', {
+      const response = await fetch(`${API_BASE_URL}/creator/insights`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: currentQuery, user_context: userContext }),
