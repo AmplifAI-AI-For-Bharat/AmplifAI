@@ -32,7 +32,7 @@ const InterestPicker = ({ onComplete }) => {
     const handleNext = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('http://localhost:8000/user/map-interests', {
+            const res = await fetch('https://amplifai-qh6u.onrender.com/user/map-interests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ interests: selected })

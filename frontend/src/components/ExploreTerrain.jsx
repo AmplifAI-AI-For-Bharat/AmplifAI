@@ -507,7 +507,7 @@ function ExploreTerrainInner({ onSearch, watchHistory = [], atlasMappingResult =
     const fetchNiches = useCallback(async (domainId, domainLabel, parentTopic = null) => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:8000/explore/generate_terrain', {
+            const res = await fetch('https://amplifai-qh6u.onrender.com/explore/generate_terrain', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ domain: domainLabel, parent_topic: parentTopic, watch_history: watchHistory.slice(-20) }),
