@@ -272,9 +272,9 @@ function App() {
             <div className="lg:col-span-5 relative animate-df-fade-in delay-200">
               <div className="relative w-full aspect-square max-w-md mx-auto">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-devfolio-muted rounded-full opacity-40 blur-3xl -z-10"></div>
-                <img src="/src/assets/doodles/idea.png" alt="Idea" className="absolute -top-10 -right-10 w-56 h-56 object-contain animate-bounce" style={{ animationDuration: '7s' }} />
-                <img src="/src/assets/doodles/search.png" alt="Search" className="absolute -bottom-10 -left-10 w-48 h-48 object-contain animate-bounce" style={{ animationDuration: '9s', animationDelay: '1.5s' }} />
-                <img src="/src/assets/doodles/tools.png" alt="Tools" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 object-contain animate-pulse" />
+                <img src="/doodles/idea.png" alt="Idea" className="absolute -top-10 -right-10 w-56 h-56 object-contain animate-bounce" style={{ animationDuration: '7s' }} />
+                <img src="/doodles/search.png" alt="Search" className="absolute -bottom-10 -left-10 w-48 h-48 object-contain animate-bounce" style={{ animationDuration: '9s', animationDelay: '1.5s' }} />
+                <img src="/doodles/tools.png" alt="Tools" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 object-contain animate-pulse" />
               </div>
             </div>
           </div>

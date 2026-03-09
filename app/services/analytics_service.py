@@ -121,15 +121,24 @@ class CreatorAnalyticsService:
         growth_task = self.get_growth_stats(channel_id)
         community_task = self.get_community_signals(channel_id)
         
-        growth, community = await asyncio.gather(growth_task, community_task)
-        
+        # Await growth and community first
+        try:
+            growth, community = await asyncio.gather(growth_task, community_task)
+        except Exception as e:
+            print(f"⚠️ Analytics Gather Error: {e}")
+            growth, community = {}, {}
+
         # Opportunities depends on interests
-        opportunities = await self.get_opportunities(niche=niche, interests=interests, community_signals=community)
+        try:
+            opportunities = await self.get_opportunities(niche=niche, interests=interests, community_signals=community)
+        except Exception as e:
+            print(f"⚠️ Opportunities Error: {e}")
+            opportunities = {"opportunities": [], "supply_demand": []}
         
         return {
-            "growth": growth,
-            "community": community,
-            "opportunities": opportunities,
+            "growth": growth or {},
+            "community": community or {},
+            "opportunities": opportunities or {"opportunities": [], "supply_demand": []},
             "timestamp": time.time()
         }
 

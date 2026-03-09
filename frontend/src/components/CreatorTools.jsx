@@ -165,12 +165,15 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
     const [activeTab, setActiveTab] = useState('opportunities');
 
     // Single unified fetch for all dashboard metrics
-    const { data, loading } = useAPI(() => {
-        return fetch(`${API}/creator/analytics/overview`, {
+    const { data, loading, error } = useAPI(async () => {
+        const resp = await fetch(`${API}/creator/analytics/overview`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
-        }).then(r => r.json()).then(r => r.data);
+        });
+        if (!resp.ok) throw new Error(`Backend Error: ${resp.status}`);
+        const r = await resp.json();
+        return r.data;
     }, []);
 
     const oppData = data?.opportunities;
@@ -198,17 +201,24 @@ const DashboardView = ({ setTool, setScriptTopic }) => {
     return (
         <div className="space-y-6 animate-df-fade-in">
             {/* Tab Bar */}
-            <div className="flex gap-2 p-1.5 bg-devfolio-muted rounded-2xl border border-gray-100 w-fit">
-                {tabs.map(t => {
-                    const Icon = t.icon;
-                    return (
-                        <button key={t.id} onClick={() => setActiveTab(t.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === t.id
-                                ? 'bg-white shadow-md text-devfolio-blue' : 'text-gray-400 hover:text-devfolio-blue'}`}>
-                            <Icon size={13} />{t.label}
-                        </button>
-                    );
-                })}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex gap-2 p-1.5 bg-devfolio-muted rounded-2xl border border-gray-100 w-fit">
+                    {tabs.map(t => {
+                        const Icon = t.icon;
+                        return (
+                            <button key={t.id} onClick={() => setActiveTab(t.id)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === t.id
+                                    ? 'bg-white shadow-md text-devfolio-blue' : 'text-gray-400 hover:text-devfolio-blue'}`}>
+                                <Icon size={13} />{t.label}
+                            </button>
+                        );
+                    })}
+                </div>
+                {error && (
+                    <div className="flex items-center gap-2 text-red-500 text-[10px] font-black uppercase tracking-widest bg-red-50 px-4 py-2 rounded-xl border border-red-100 animate-pulse">
+                        <AlertCircle size={14} /> Failed to sync metrics
+                    </div>
+                )}
             </div>
 
             {/* ═══ OPPORTUNITIES TAB ═══ */}
