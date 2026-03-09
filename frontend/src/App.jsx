@@ -58,7 +58,10 @@ function App() {
         handleSearch('', { id: 'returning_user', context: parsed.interests }, parsed);
       }
     } else {
-      setShowInterestPicker(true);
+      // Bypassing InterestPicker to show Discovery Tab immediately
+      setShowInterestPicker(false);
+      // Optional: Fetch a default "Discovery" feed
+      handleSearch('new trends high signal', { id: 'new_user', context: ['Technology', 'Science', 'Culture'] });
     }
   }, []);
 
