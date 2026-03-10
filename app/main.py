@@ -72,8 +72,12 @@ async def background_market_pulse():
             await asyncio.sleep(60)
 
 @app.get("/")
-def root():
-    return {"message": "Hyperbolic Engine Online (Live Mode) 🚀"}
+async def root():
+    routes = [{"path": r.path, "name": r.name, "methods": list(r.methods)} for r in app.routes]
+    return {
+        "message": f"Hyperbolic Engine Online ({'Live' if not settings.DEMO_MODE else 'Demo'} Mode) 🚀",
+        "routes": routes
+    }
 
 @app.post("/creator/assessment")
 async def create_creator_assessment(profile: CreatorProfile):
