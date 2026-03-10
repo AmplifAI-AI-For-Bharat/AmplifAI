@@ -8,7 +8,7 @@ import InterestPicker from './components/InterestPicker';
 import ExploreTerrain, { STATIC_MAP } from './components/ExploreTerrain';
 
 const APP_NAME = 'AmplifAI';
-const API_BASE_URL = 'https://amplifai-qh6u.onrender.com';
+const API_BASE_URL = 'https://amplifai-backend-fea3.onrender.com';
 
 const SwipeDownHint = ({ text = "Swipe down to search" }) => (
   <div className="animate-bounce flex flex-col items-center gap-2 mb-6">
