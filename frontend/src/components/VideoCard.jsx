@@ -13,7 +13,7 @@ const VideoCard = ({ video, onShowOnMap }) => {
     const handleFeedback = async (type) => {
         setFeedback(type);
         try {
-            await fetch('https://amplifai-qh6u.onrender.com/consumer/feedback', {
+            await fetch('https://amplifai-backend-fea3.onrender.com/consumer/feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -34,7 +34,7 @@ const VideoCard = ({ video, onShowOnMap }) => {
         }
         setTranslating(true);
         try {
-            const response = await fetch('https://amplifai-qh6u.onrender.com/translate/video', {
+            const response = await fetch('https://amplifai-backend-fea3.onrender.com/translate/video', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ video_id: video.video_id, title: video.title || "" })

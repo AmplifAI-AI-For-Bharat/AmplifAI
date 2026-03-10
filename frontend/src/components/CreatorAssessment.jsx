@@ -100,7 +100,7 @@ const CreatorAssessment = ({ onComplete, onClose }) => {
         setAnswers(payload);
         setIsLoading(true);
         try {
-            const res = await fetch("https://amplifai-qh6u.onrender.com/creator/atlas-mapping", {
+            const res = await fetch("https://amplifai-backend-fea3.onrender.com/creator/atlas-mapping", {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
             });
             const data = await res.json();

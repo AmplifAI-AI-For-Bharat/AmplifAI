@@ -9,7 +9,7 @@ import {
     Search, Dna, RefreshCw, Radar, FileText
 } from 'lucide-react';
 
-const API = 'https://amplifai-qh6u.onrender.com';
+const API = 'https://amplifai-backend-fea3.onrender.com';
 const inp = "w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm text-devfolio-text-primary focus:border-devfolio-blue focus:ring-4 focus:ring-devfolio-blue/5 outline-none transition-all placeholder:text-gray-300 font-medium font-sans";
 const lbl = "block text-[10px] text-gray-400 uppercase tracking-[0.2em] font-black mb-2 px-1";
 

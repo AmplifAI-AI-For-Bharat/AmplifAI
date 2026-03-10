@@ -32,7 +32,7 @@ const InterestPicker = ({ onComplete }) => {
     const handleNext = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('https://amplifai-qh6u.onrender.com/user/map-interests', {
+            const res = await fetch('https://amplifai-backend-fea3.onrender.com/user/map-interests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ interests: selected })
@@ -53,8 +53,8 @@ const InterestPicker = ({ onComplete }) => {
                 {step === 'select' ? (
                     <div className="animate-df-fade-in">
                         <div className="text-center mb-16 relative">
-                            <img src="/src/assets/doodles/idea.png" alt="" className="absolute -top-20 -left-10 w-32 h-32 opacity-20 rotate-12 pointer-events-none" />
-                            <img src="/src/assets/doodles/tools.png" alt="" className="absolute -top-10 -right-10 w-28 h-28 opacity-20 -rotate-12 pointer-events-none" />
+                            <img src="/doodles/idea.png" alt="" className="absolute -top-20 -left-10 w-32 h-32 opacity-20 rotate-12 pointer-events-none" />
+                            <img src="/doodles/tools.png" alt="" className="absolute -top-10 -right-10 w-28 h-28 opacity-20 -rotate-12 pointer-events-none" />
 
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-devfolio-blue/10 border border-devfolio-blue/20 text-devfolio-blue text-xs font-black tracking-widest uppercase mb-8">
                                 <Sparkles size={14} className="fill-devfolio-blue" /> Personalize Your Signal
@@ -126,7 +126,7 @@ const InterestPicker = ({ onComplete }) => {
                 ) : (
                     <div className="animate-df-fade-in">
                         <div className="text-center mb-16 relative">
-                            <img src="/src/assets/doodles/search.png" alt="" className="absolute -top-10 left-10 w-24 h-24 opacity-30 rotate-12 pointer-events-none" />
+                            <img src="/doodles/search.png" alt="" className="absolute -top-10 left-10 w-24 h-24 opacity-30 rotate-12 pointer-events-none" />
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-devfolio-green/10 border border-devfolio-green/20 text-devfolio-green text-xs font-black tracking-widest uppercase mb-6">
                                 <Check size={14} strokeWidth={3} /> Mapping Complete
                             </div>

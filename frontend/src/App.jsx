@@ -22,6 +22,37 @@ const SwipeDownHint = ({ text = "Swipe down to search" }) => (
   </div>
 );
 
+export class GlobalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("Critical Crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-10 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-500 text-4xl mb-6">⚠️</div>
+          <h1 className="text-3xl font-black text-red-900 mb-4">Application Crash</h1>
+          <p className="text-red-700 font-medium mb-8 max-w-lg">Something went wrong during the initial load. Please check the console or use a hard refresh.</p>
+          <pre className="bg-white p-6 rounded-xl border border-red-200 text-left text-xs text-red-500 overflow-auto max-w-2xl w-full">
+            {this.state.error && this.state.error.toString()}
+          </pre>
+          <button onClick={() => window.location.reload()} className="mt-8 bg-red-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-red-600 transition-all">
+            Try Recovery
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const [currentFeed, setCurrentFeed] = useState(null);
   const [marketInsights, setMarketInsights] = useState(null);
